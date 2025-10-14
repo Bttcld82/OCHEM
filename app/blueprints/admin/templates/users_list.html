@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>👥 Gestione Utenti</h1>
+    <a href="{{ url_for('admin_bp.users_new') }}" class="btn btn-primary">
+        ➕ Nuovo Utente
+    </a>
+</div>
+
+<!-- Filtri e ricerca -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="q" class="form-label">🔍 Cerca utente:</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="q" 
+                       name="q" 
+                       placeholder="Nome, cognome, email..."
+                       value="{{ q or '' }}">
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">Stato:</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Tutti</option>
+                    <option value="active" {{ 'selected' if request.args.get('status') == 'active' else '' }}>
+                        ✅ Attivi
+                    </option>
+                    <option value="inactive" {{ 'selected' if request.args.get('status') == 'inactive' else '' }}>
+                        ❌ Inattivi
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">🔍 Cerca</button>
+                <a href="{{ url_for('admin_bp.users_list') }}" class="btn btn-outline-secondary">
+                    🔄 Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista Utenti -->
+<div class="card">
+    <div class="card-body">
+        {% if users %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Stato</th>
+                            <th>Ruolo Globale</th>
+                            <th>Laboratori</th>
+                            <th>Ultimo Accesso</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>
+                                <strong>{{ user.name }}</strong>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">✅ Attivo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">❌ Inattivo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.has_role('admin') %}
+                                    <span class="badge bg-primary">👑 Admin</span>
+                                    {% if not user.email.startswith('admin') %}
+                                        <button class="btn btn-sm btn-outline-danger ms-1" 
+                                                onclick="removeAdmin({{ user.id }})"
+                                                title="Rimuovi Admin">
+                                            ❌
+                                        </button>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary">👤 Utente</span>
+                                    <button class="btn btn-sm btn-outline-primary ms-1" 
+                                            onclick="makeAdmin({{ user.id }})"
+                                            title="Rendi Admin">
+                                        👑
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ user.get_labs_count() }} lab</span>
+                                {% for lab_role in user.lab_roles[:3] %}
+                                    <small class="d-block text-muted">
+                                        {{ lab_role.lab.code }}: {{ lab_role.role.name }}
+                                    </small>
+                                {% endfor %}
+                                {% if user.lab_roles|length > 3 %}
+                                    <small class="text-muted">... e altri {{ user.lab_roles|length - 3 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.last_login_at %}
+                                    <small class="text-muted">
+                                        {{ user.last_login_at.strftime('%d/%m/%Y %H:%M') }}
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted">Mai</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_bp.users_edit', user_id=user.id) }}" 
+                                       class="btn btn-outline-primary" 
+                                       title="Modifica">
+                                        ✏️
+                                    </a>
+                                    <a href="{{ url_for('admin_bp.user_detail', user_id=user.id) }}" 
+                                       class="btn btn-outline-info" 
+                                       title="Dettagli e Laboratori">
+                                        �️
+                                    </a>
+                                    {% if user.is_active %}
+                                        <button class="btn btn-outline-warning" 
+                                                onclick="toggleUserStatus({{ user.id }}, false)"
+                                                title="Disattiva">
+                                            �
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-outline-success" 
+                                                onclick="toggleUserStatus({{ user.id }}, true)"
+                                                title="Attiva">
+                                            �
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginazione (se implementata) -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <small class="text-muted">
+                    Totale utenti: {{ users|length }}
+                </small>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted">
+                    {% if q %}
+                        Nessun utente trovato per la ricerca "{{ q }}".
+                    {% else %}
+                        Nessun utente presente nel sistema.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleUserStatus(userId, activate) {
+    const action = activate ? 'attivare' : 'disattivare';
+    
+    if (confirm(`Sei sicuro di voler ${action} questo utente?`)) {
+        fetch(`/admin/users/${userId}/toggle_active`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Errore: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Errore:', error);
+            location.reload(); // Fallback
+        });
+    }
+}
+
+function makeAdmin(userId) {
+    if (confirm('Sei sicuro di voler rendere questo utente amministratore?')) {
+        fetch(`/admin/users/${userId}/make-admin`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Errore: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Errore:', error);
+            location.reload(); // Fallback
+        });
+    }
+}
+
+function removeAdmin(userId) {
+    if (confirm('Sei sicuro di voler rimuovere i privilegi di amministratore da questo utente?')) {
+        fetch(`/admin/users/${userId}/remove-admin`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Errore: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Errore:', error);
+            location.reload(); // Fallback
+        });
+    }
+}
+
+function getCsrfToken() {
+    // Cerca il token CSRF nel meta tag o in un hidden input
+    const token = document.querySelector('meta[name="csrf-token"]');
+    return token ? token.getAttribute('content') : '';
+}
+</script>
+{% endblock %}

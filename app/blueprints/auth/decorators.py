@@ -38,8 +38,6 @@ def role_required(role_name):
 
 def lab_role_required(min_role="viewer"):
     """Richiede un ruolo minimo per un laboratorio"""
-    role_hierarchy = {"owner_lab": 3, "analyst": 2, "viewer": 1}
-    
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -56,19 +54,14 @@ def lab_role_required(min_role="viewer"):
             if not lab_code:
                 abort(400, "Codice laboratorio richiesto")
             
-            # Verifica ruolo laboratorio
-            min_level = role_hierarchy.get(min_role, 1)
-            user_roles = current_user.lab_roles
-            
-            has_access = any(
-                ulr.lab_code == lab_code and 
-                role_hierarchy.get(ulr.role.name, 0) >= min_level
-                for ulr in user_roles
-            )
-            
-            if not has_access and not current_user.has_role("admin"):
+            # Usa il metodo del modello User per verificare il ruolo
+            if not current_user.has_lab_min_role(lab_code, min_role):
                 abort(403)
             
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+def has_lab_min_role(user, lab_code, min_role):
+    """Funzione helper per verificare ruoli minimi nei laboratori"""
+    return user.has_lab_min_role(lab_code, min_role)

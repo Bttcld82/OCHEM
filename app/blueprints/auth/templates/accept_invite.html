@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white text-center">
+                <h4 class="mb-0">
+                    🎉 Invito Laboratorio
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success">
+                    <h6>📧 Sei stato invitato!</h6>
+                    <p class="mb-0">
+                        Sei stato invitato a unirti al laboratorio 
+                        <strong>{{ lab.name if lab else invite.lab_code }}</strong>
+                        con il ruolo di <strong>{{ invite.role }}</strong>.
+                    </p>
+                </div>
+                
+                <div class="bg-light p-3 rounded mb-4">
+                    <h6>📋 Dettagli Invito</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li><strong>Email:</strong> {{ invite.email }}</li>
+                        <li><strong>Laboratorio:</strong> {{ lab.name if lab else invite.lab_code }} ({{ invite.lab_code }})</li>
+                        <li><strong>Ruolo:</strong> {{ invite.role }}</li>
+                        <li><strong>Scade il:</strong> {{ invite.expires_at.strftime('%d/%m/%Y alle %H:%M') }}</li>
+                    </ul>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">🔒 Imposta Password *</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="password" 
+                               name="password" 
+                               placeholder="Minimo 10 caratteri"
+                               required>
+                        <div class="form-text">Scegli una password sicura di almeno 10 caratteri.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="password_confirm" class="form-label">🔒 Conferma Password *</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="password_confirm" 
+                               name="password_confirm" 
+                               placeholder="Ripeti la password"
+                               required>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            ✅ Accetta Invito e Imposta Password
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        Dopo aver accettato l'invito, dovrai accettare il disclaimer della piattaforma.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-3 text-center">
+            <div class="alert alert-warning">
+                <small>
+                    <strong>⚠️ Attenzione:</strong> Questo invito può essere utilizzato una sola volta e scadrà automaticamente.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validazione password in tempo reale
+document.addEventListener('DOMContentLoaded', function() {
+    const password = document.getElementById('password');
+    const passwordConfirm = document.getElementById('password_confirm');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    
+    function validatePasswords() {
+        const isValid = password.value.length >= 10 && 
+                       password.value === passwordConfirm.value;
+        
+        if (passwordConfirm.value && password.value !== passwordConfirm.value) {
+            passwordConfirm.setCustomValidity('Le password non corrispondono');
+        } else {
+            passwordConfirm.setCustomValidity('');
+        }
+        
+        submitBtn.disabled = !isValid;
+    }
+    
+    password.addEventListener('input', validatePasswords);
+    passwordConfirm.addEventListener('input', validatePasswords);
+});
+</script>
+{% endblock %}

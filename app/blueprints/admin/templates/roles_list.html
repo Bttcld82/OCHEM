@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>🔑 Gestione Ruoli</h1>
+    <a href="{{ url_for('admin_bp.roles_new') }}" class="btn btn-primary">
+        ➕ Nuovo Ruolo
+    </a>
+</div>
+
+<!-- Lista Ruoli -->
+<div class="card">
+    <div class="card-body">
+        {% if roles %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome Ruolo</th>
+                            <th>Descrizione</th>
+                            <th>Utenti Assegnati</th>
+                            <th>Creato</th>
+                            <th class="text-center">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for role in roles %}
+                        <tr>
+                            <td>
+                                <strong>{{ role.name }}</strong>
+                                {% if role.name == 'admin' %}
+                                    <span class="badge bg-danger ms-2">Globale</span>
+                                {% elif role.name in ['owner_lab', 'analyst', 'viewer'] %}
+                                    <span class="badge bg-info ms-2">Laboratorio</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ role.description or '-' }}</td>
+                            <td>
+                                {% if role.name == 'admin' %}
+                                    {% set admin_count = role.user_roles|selectattr('lab_id', 'none')|list|length %}
+                                    <span class="badge bg-secondary">{{ admin_count }} admin globali</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ role.user_roles|length }} assegnazioni</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ role.created_at.strftime('%d/%m/%Y') if role.created_at else '-' }}
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    {% if role.name not in ['admin', 'owner_lab', 'analyst', 'viewer'] %}
+                                        <a href="{{ url_for('admin_bp.roles_edit', role_id=role.id) }}" 
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="Modifica ruolo">
+                                            ✏️
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                onclick="deleteRole({{ role.id }}, '{{ role.name }}')"
+                                                title="Elimina ruolo"
+                                                {% if role.user_roles|length > 0 %}disabled{% endif %}>
+                                            🗑️
+                                        </button>
+                                    {% else %}
+                                        <span class="badge bg-warning">Sistema</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <div class="text-muted mb-3">
+                    <i class="fs-1">🔑</i>
+                </div>
+                <h5 class="text-muted">Nessun ruolo trovato</h5>
+                <p class="text-muted">Clicca su "Nuovo Ruolo" per aggiungerne uno.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Spiegazione Ruoli -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">ℹ️ Gerarchia Ruoli</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Ruoli Globali:</h6>
+                <ul class="list-unstyled mb-3">
+                    <li><span class="badge bg-danger me-2">admin</span> Amministratore del sistema</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Ruoli per Laboratorio (dal più alto al più basso):</h6>
+                <ul class="list-unstyled mb-3">
+                    <li><span class="badge bg-success me-2">owner_lab</span> Proprietario del laboratorio</li>
+                    <li><span class="badge bg-primary me-2">analyst</span> Analista del laboratorio</li>
+                    <li><span class="badge bg-secondary me-2">viewer</span> Visualizzatore del laboratorio</li>
+                </ul>
+            </div>
+        </div>
+        <div class="alert alert-info mb-0">
+            <small>
+                <strong>Nota:</strong> I ruoli di sistema (admin, owner_lab, analyst, viewer) non possono essere modificati o eliminati.
+                Ogni laboratorio deve avere almeno un owner_lab assegnato.
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Modal conferma eliminazione -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🗑️ Conferma Eliminazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sei sicuro di voler eliminare il ruolo <strong id="deleteRoleName"></strong>?</p>
+                <p class="text-warning">
+                    <small><strong>Attenzione:</strong> Questa azione non può essere annullata.</small>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Elimina</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteRole(roleId, roleName) {
+    document.getElementById('deleteRoleName').textContent = roleName;
+    document.getElementById('deleteForm').action = '/admin/roles/' + roleId + '/delete';
+    
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+</script>
+{% endblock %}

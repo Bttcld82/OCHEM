@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{% if user %}✏️ Modifica Utente{% else %}➕ Nuovo Utente{% endif %}</h1>
+    <a href="{{ url_for('admin_bp.users_list') }}" class="btn btn-outline-secondary">
+        ← Torna alla lista
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{% if user %}Modifica Dati Utente{% else %}Crea Nuovo Utente{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">👤 Nome *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="first_name" 
+                                   name="first_name" 
+                                   placeholder="Nome"
+                                   value="{{ (form.first_name.data if form else user.first_name if user else request.form.first_name) or '' }}"
+                                   required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">👤 Cognome *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="last_name" 
+                                   name="last_name" 
+                                   placeholder="Cognome"
+                                   value="{{ (form.last_name.data if form else user.last_name if user else request.form.last_name) or '' }}"
+                                   required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">📧 Email *</label>
+                        <input type="email" 
+                               class="form-control" 
+                               id="email" 
+                               name="email" 
+                               placeholder="email@esempio.it"
+                               value="{{ (form.email.data if form else user.email if user else request.form.email) or '' }}"
+                               required>
+                    </div>
+                    
+                    {% if not user %}
+                    <div class="mb-3">
+                        <label for="password" class="form-label">🔒 Password *</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="password" 
+                               name="password" 
+                               placeholder="Password (minimo 8 caratteri)"
+                               required>
+                        <div class="form-text">La password deve essere di almeno 8 caratteri.</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="is_active" 
+                                   name="is_active"
+                                   {{ 'checked' if (form.is_active.data if form else user.is_active if user else True) else '' }}>
+                            <label class="form-check-label" for="is_active">
+                                ✅ Utente attivo
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('admin_bp.users_list') }}" class="btn btn-outline-secondary">
+                            ❌ Annulla
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if user %}💾 Salva Modifiche{% else %}➕ Crea Utente{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        {% if user %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">📊 Informazioni Account</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li><strong>ID:</strong> {{ user.id }}</li>
+                    <li><strong>Creato:</strong> 
+                        <small>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'N/A' }}</small>
+                    </li>
+                    <li><strong>Ultimo accesso:</strong> 
+                        <small>{{ user.last_login_at.strftime('%d/%m/%Y %H:%M') if user.last_login_at else 'Mai' }}</small>
+                    </li>
+                    <li><strong>Disclaimer:</strong> 
+                        {% if user.accepted_disclaimer_at %}
+                            <span class="text-success">✅ Accettato</span>
+                            <small class="d-block">{{ user.accepted_disclaimer_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                        {% else %}
+                            <span class="text-warning">⏳ Non accettato</span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">🔧 Azioni Rapide</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-warning btn-sm" 
+                            onclick="resetPassword({{ user.id }})">
+                        🔑 Reset Password
+                    </button>
+                    
+                    {% if user.is_active %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="toggleUserStatus({{ user.id }}, false)">
+                            🔒 Disattiva Utente
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-outline-success btn-sm" 
+                                onclick="toggleUserStatus({{ user.id }}, true)">
+                            🔓 Attiva Utente
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">💡 Suggerimenti</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled small mb-0">
+                    <li>• L'email deve essere unica nel sistema</li>
+                    <li>• Gli utenti inattivi non possono accedere</li>
+                    <li>• Il disclaimer deve essere accettato al primo accesso</li>
+                    {% if not user %}
+                    <li>• La password può essere cambiata dopo la creazione</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function resetPassword(userId) {
+    if (confirm('Sei sicuro di voler generare una nuova password per questo utente?')) {
+        // TODO: Implementare reset password
+        alert('Funzionalità non ancora implementata');
+    }
+}
+
+function toggleUserStatus(userId, activate) {
+    const action = activate ? 'attivare' : 'disattivare';
+    
+    if (confirm(`Sei sicuro di voler ${action} questo utente?`)) {
+        fetch(`/admin/users/${userId}/toggle-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ active: activate })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Errore: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Errore di connessione');
+        });
+    }
+}
+</script>
+{% endblock %}

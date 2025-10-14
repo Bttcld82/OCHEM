@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for
 from flask_login import login_required
 from app import db
-from app.models import Lab, User, Cycle, DocFile, Parameter
+from app.models import Lab, User, Cycle, DocFile, Parameter, RegistrationRequest
 from app.blueprints.auth.decorators import disclaimer_required, role_required
 
 # Crea il blueprint admin secondo instruction_admin.md
@@ -24,6 +24,7 @@ def dashboard():
     published_cycles = db.session.query(Cycle).filter_by(status="published").count()
     total_parameters = db.session.query(Parameter).count()
     total_users = db.session.query(User).count()
+    pending_registrations = db.session.query(RegistrationRequest).filter_by(status="submitted").count()
     
     return render_template(
         "admin_dashboard.html",
@@ -33,7 +34,8 @@ def dashboard():
         pending_cycles=pending_cycles,
         published_cycles=published_cycles,
         total_parameters=total_parameters,
-        total_users=total_users
+        total_users=total_users,
+        pending_registrations=pending_registrations
     )
 
 # Redirect per compatibilità
@@ -47,3 +49,4 @@ from . import routes_labs
 from . import routes_parameters
 from . import routes_users
 from . import routes_docs
+from . import routes_registrations

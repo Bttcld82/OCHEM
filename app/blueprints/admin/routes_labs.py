@@ -1,6 +1,7 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, jsonify
 from app import db
-from app.models import Lab, LabParticipation, Result, User
+from app.models import Lab, LabParticipation, Result, User, Role, UserLabRole
+from app.services.roles import RoleService, RoleManagementError
 from datetime import datetime
 from .routes_main import admin_bp
 
@@ -125,3 +126,82 @@ def lab_toggle_active(lab_id):
     status = "attivato" if lab.is_active else "disattivato"
     flash(f"Laboratorio {lab.name} {status} con successo.", "success")
     return redirect(url_for("admin_bp.labs_list"))
+
+# ===========================
+# GESTIONE UTENTI LABORATORIO
+# ===========================
+
+@admin_bp.route("/labs/<int:lab_id>/users")
+def lab_users(lab_id):
+    """Lista utenti di un laboratorio"""
+    lab = Lab.query.get_or_404(lab_id)
+    
+    # Ottieni utenti con i loro ruoli per questo lab
+    lab_users = RoleService.get_users_for_lab(lab_id)
+    
+    # Ottieni tutti i ruoli disponibili per i laboratori
+    lab_roles = Role.query.filter(Role.name.in_(RoleService.LAB_ROLES)).all()
+    
+    return render_template("lab_users.html", 
+                         lab=lab, 
+                         lab_users=lab_users,
+                         lab_roles=lab_roles)
+
+@admin_bp.route("/labs/<int:lab_id>/users/add-existing", methods=["POST"])
+def add_existing_user_to_lab(lab_id):
+    """Aggiungi utente esistente a un laboratorio"""
+    try:
+        email = request.form.get("email", "").strip()
+        role_name = request.form.get("role_name")
+        
+        if not email or not role_name:
+            flash("Email e ruolo sono obbligatori.", "danger")
+            return redirect(url_for("admin_bp.lab_users", lab_id=lab_id))
+        
+        user = RoleService.add_existing_user_to_lab(email, lab_id, role_name)
+        flash(f"Utente {user.name} aggiunto al laboratorio con ruolo {role_name}.", "success")
+        
+    except RoleManagementError as e:
+        flash(str(e), "danger")
+    except Exception as e:
+        flash(f"Errore nell'aggiunta: {e}", "danger")
+    
+    return redirect(url_for("admin_bp.lab_users", lab_id=lab_id))
+
+@admin_bp.route("/labs/<int:lab_id>/users/<int:user_id>/update-role", methods=["POST"])
+def update_lab_user_role(lab_id, user_id):
+    """Cambia il ruolo di un utente nel laboratorio"""
+    try:
+        new_role = request.form.get("role_name")
+        
+        if not new_role:
+            flash("Ruolo richiesto.", "danger")
+            return redirect(url_for("admin_bp.lab_users", lab_id=lab_id))
+        
+        RoleService.change_lab_role(user_id, lab_id, new_role)
+        
+        user = User.query.get(user_id)
+        flash(f"Ruolo di {user.name} aggiornato a {new_role}.", "success")
+        
+    except RoleManagementError as e:
+        flash(str(e), "danger")
+    except Exception as e:
+        flash(f"Errore nell'aggiornamento: {e}", "danger")
+    
+    return redirect(url_for("admin_bp.lab_users", lab_id=lab_id))
+
+@admin_bp.route("/labs/<int:lab_id>/users/<int:user_id>/remove", methods=["POST"])
+def remove_lab_user(lab_id, user_id):
+    """Rimuove un utente dal laboratorio"""
+    try:
+        RoleService.remove_lab_role(user_id, lab_id)
+        
+        user = User.query.get(user_id)
+        flash(f"Utente {user.name} rimosso dal laboratorio.", "success")
+        
+    except RoleManagementError as e:
+        flash(str(e), "danger")
+    except Exception as e:
+        flash(f"Errore nella rimozione: {e}", "danger")
+    
+    return redirect(url_for("admin_bp.lab_users", lab_id=lab_id))

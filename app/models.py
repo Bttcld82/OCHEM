@@ -19,6 +19,7 @@ class User(UserMixin, db.Model):
     accepted_disclaimer_at = db.Column(db.DateTime, nullable=True)
     last_login_at = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False)  # Campo per privilegi amministratore
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -42,23 +43,40 @@ class User(UserMixin, db.Model):
 
     def has_role(self, role_name):
         """Verifica se l'utente ha un ruolo globale"""
-        # Per ora consideriamo admin come proprietà speciale
         if role_name == "admin":
-            return self.email.startswith("admin")  # Implementazione temporanea
+            return self.is_admin or self.email.startswith("admin")  # Compatibilità con implementazione precedente
         return False
 
     def has_lab_role(self, lab_code, role_name):
         """Verifica se l'utente ha un ruolo specifico per un laboratorio"""
-        from app.models import Role
         for lab_role in self.lab_roles:
-            if (lab_role.lab_code == lab_code and 
+            if (lab_role.lab.code == lab_code and 
                 lab_role.role.name == role_name):
                 return True
         return False
 
     def get_lab_roles(self, lab_code):
         """Ottieni tutti i ruoli dell'utente per un laboratorio"""
-        return [lr.role.name for lr in self.lab_roles if lr.lab_code == lab_code]
+        return [lr.role.name for lr in self.lab_roles if lr.lab.code == lab_code]
+    
+    def get_labs_count(self):
+        """Ottieni il numero di laboratori a cui l'utente è associato"""
+        return len(set(lr.lab_id for lr in self.lab_roles))
+    
+    def has_lab_min_role(self, lab_code, min_role):
+        """Verifica se l'utente ha almeno il ruolo minimo per un laboratorio"""
+        if self.has_role("admin"):
+            return True
+        
+        role_hierarchy = {"owner_lab": 3, "analyst": 2, "viewer": 1}
+        min_level = role_hierarchy.get(min_role, 0)
+        
+        for lab_role in self.lab_roles:
+            if (lab_role.lab.code == lab_code and 
+                role_hierarchy.get(lab_role.role.name, 0) >= min_level):
+                return True
+        
+        return False
 
 class Lab(db.Model):
     __tablename__ = 'lab'
@@ -79,6 +97,7 @@ class Lab(db.Model):
     results = db.relationship('Result', back_populates='lab', cascade='all, delete-orphan')
     uploads = db.relationship('UploadFile', back_populates='lab', cascade='all, delete-orphan')
     stats = db.relationship('PtStats', back_populates='lab', primaryjoin='Lab.code==PtStats.lab_code')
+    invites = db.relationship('InviteToken', back_populates='lab', cascade='all, delete-orphan', primaryjoin='Lab.code==InviteToken.lab_code', foreign_keys='InviteToken.lab_code')
 
 class Role(db.Model):
     __tablename__ = 'role'
@@ -94,6 +113,9 @@ class Role(db.Model):
 
 class UserLabRole(db.Model):
     __tablename__ = 'user_lab_role'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'lab_id', name='uq_user_lab'),
+    )
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -382,3 +404,100 @@ class JobLog(db.Model):
     completed_at = db.Column(db.DateTime, nullable=True)
     error_message = db.Column(db.Text, nullable=True)
     details = db.Column(db.Text, nullable=True)
+
+# ===========================
+# TABELLE AUTENTICAZIONE E REGISTRAZIONE
+# ===========================
+
+class RegistrationRequest(db.Model):
+    __tablename__ = 'registration_request'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    full_name = db.Column(db.String(160), nullable=True)
+    desired_lab_name = db.Column(db.String(100), nullable=True)
+    target_lab_code = db.Column(db.String(20), nullable=True)
+    desired_role = db.Column(db.String(20), nullable=False, default='owner_lab')
+    note = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='submitted', index=True)
+    admin_note = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decided_by = db.Column(db.String(120), nullable=True)
+    
+    # Metodi di utilità
+    @property
+    def is_pending(self):
+        return self.status in ['submitted', 'under_review']
+    
+    @property
+    def is_decided(self):
+        return self.status in ['approved', 'rejected']
+    
+    def approve(self, admin_email, admin_note=None):
+        """Approva la richiesta di registrazione"""
+        self.status = 'approved'
+        self.decided_at = datetime.utcnow()
+        self.decided_by = admin_email
+        if admin_note:
+            self.admin_note = admin_note
+    
+    def reject(self, admin_email, admin_note=None):
+        """Rifiuta la richiesta di registrazione"""
+        self.status = 'rejected'
+        self.decided_at = datetime.utcnow()
+        self.decided_by = admin_email
+        if admin_note:
+            self.admin_note = admin_note
+
+class InviteToken(db.Model):
+    __tablename__ = 'invite_token'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    lab_code = db.Column(db.String(20), nullable=False, index=True)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    role = db.Column(db.String(20), nullable=False)
+    token = db.Column(db.String(96), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_by = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relazioni
+    lab = db.relationship('Lab', back_populates='invites', primaryjoin='Lab.code==InviteToken.lab_code', foreign_keys='InviteToken.lab_code')
+    
+    @property
+    def is_expired(self):
+        """Verifica se il token è scaduto"""
+        return datetime.utcnow() > self.expires_at
+    
+    @property
+    def is_used(self):
+        """Verifica se il token è già stato usato"""
+        return self.used_at is not None
+    
+    @property
+    def is_valid(self):
+        """Verifica se il token è ancora valido"""
+        return not self.is_expired and not self.is_used
+    
+    def use_token(self):
+        """Marca il token come utilizzato"""
+        self.used_at = datetime.utcnow()
+    
+    @classmethod
+    def create_invite(cls, lab_code, email, role, created_by, expires_in_days=7):
+        """Crea un nuovo token di invito"""
+        import secrets
+        token = secrets.token_urlsafe(48)
+        from datetime import timedelta
+        expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
+        
+        return cls(
+            lab_code=lab_code,
+            email=email,
+            role=role,
+            token=token,
+            expires_at=expires_at,
+            created_by=created_by
+        )

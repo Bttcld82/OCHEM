@@ -112,6 +112,14 @@
                 </div>
                 <div class="card-body">
                     <div class="list-group list-group-flush">
+                        <a href="{{ url_for('admin_bp.registrations_list') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-user-plus text-success me-2"></i> Richieste Registrazione
+                                {% if pending_registrations > 0 %}
+                                    <span class="badge bg-warning text-dark ms-2">{{ pending_registrations }}</span>
+                                {% endif %}
+                            </span>
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
                         <a href="{{ url_for('admin_bp.users_list') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                             <span><i class="fas fa-user text-primary me-2"></i> Gestione Utenti</span>
                             <i class="fas fa-chevron-right"></i>

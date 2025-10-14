@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>📋 Dettaglio Registrazione</h1>
+    <a href="{{ url_for('admin_bp.registrations_list') }}" class="btn btn-outline-secondary">
+        ← Torna alla lista
+    </a>
+</div>
+
+<div class="row">
+    <!-- Informazioni principali -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">📝 Informazioni Richiesta</h5>
+                {% if registration.status == 'submitted' %}
+                    <span class="badge bg-warning text-dark fs-6">⏳ In attesa</span>
+                {% elif registration.status == 'under_review' %}
+                    <span class="badge bg-info fs-6">👀 In revisione</span>
+                {% elif registration.status == 'approved' %}
+                    <span class="badge bg-success fs-6">✅ Approvata</span>
+                {% elif registration.status == 'rejected' %}
+                    <span class="badge bg-danger fs-6">❌ Rifiutata</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong>📧 Email:</strong><br>
+                        <span class="text-primary">{{ registration.email }}</span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>👤 Nome Completo:</strong><br>
+                        {{ registration.full_name or '<em>Non specificato</em>' | safe }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>📅 Data Richiesta:</strong><br>
+                        {{ registration.created_at.strftime('%d/%m/%Y alle %H:%M') }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>🎯 Ruolo Desiderato:</strong><br>
+                        <span class="badge bg-secondary">{{ registration.desired_role }}</span>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <strong>🏢 Informazioni Laboratorio:</strong>
+                        <div class="mt-2">
+                            {% if registration.desired_lab_name %}
+                                <div class="alert alert-success">
+                                    <strong>🆕 Vuole creare un nuovo laboratorio:</strong><br>
+                                    <em>"{{ registration.desired_lab_name }}"</em>
+                                </div>
+                            {% elif registration.target_lab_code %}
+                                <div class="alert alert-info">
+                                    <strong>🔗 Vuole unirsi al laboratorio:</strong><br>
+                                    <em>{{ registration.target_lab_code }}</em>
+                                    {% if target_lab %}
+                                        <br><small class="text-muted">({{ target_lab.name }})</small>
+                                    {% else %}
+                                        <br><small class="text-danger">⚠️ Laboratorio non trovato</small>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-light">
+                                    <em>Nessuna preferenza specifica per il laboratorio</em>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if registration.note %}
+                <hr>
+                <div class="row">
+                    <div class="col-12">
+                        <strong>💬 Note aggiuntive:</strong>
+                        <div class="mt-2 p-3 bg-light rounded">
+                            {{ registration.note }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Stato e Decisione -->
+        {% if registration.is_decided %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">⚖️ Decisione Amministratore</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong>👨‍💼 Deciso da:</strong><br>
+                        {{ registration.decided_by }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>📅 Data decisione:</strong><br>
+                        {{ registration.decided_at.strftime('%d/%m/%Y alle %H:%M') if registration.decided_at else '-' }}
+                    </div>
+                </div>
+                
+                {% if registration.admin_note %}
+                <div class="row">
+                    <div class="col-12">
+                        <strong>📝 Note dell'amministratore:</strong>
+                        <div class="mt-2 p-3 bg-light rounded">
+                            {{ registration.admin_note }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Sidebar con azioni -->
+    <div class="col-md-4">
+        <!-- Verifica utente esistente -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">🔍 Verifica Utente</h6>
+            </div>
+            <div class="card-body">
+                {% if existing_user %}
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Utente già esistente</strong><br>
+                        Email: {{ existing_user.email }}<br>
+                        Nome: {{ existing_user.name }}<br>
+                        Attivo: {{ '✅ Sì' if existing_user.is_active else '❌ No' }}
+                    </div>
+                {% else %}
+                    <div class="alert alert-success">
+                        <strong>✅ Nuovo utente</strong><br>
+                        Nessun utente esistente con questa email.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Azioni disponibili -->
+        {% if registration.is_pending %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">⚙️ Azioni</h6>
+            </div>
+            <div class="card-body">
+                {% if registration.status == 'submitted' %}
+                    <form method="POST" action="{{ url_for('admin_bp.registration_review', registration_id=registration.id) }}" class="mb-2">
+                        <button type="submit" class="btn btn-info w-100">
+                            👀 Metti in Revisione
+                        </button>
+                    </form>
+                {% endif %}
+                
+                <!-- Form approvazione -->
+                <form method="POST" action="{{ url_for('admin_bp.registration_approve', registration_id=registration.id) }}" class="mb-2">
+                    <div class="mb-2">
+                        <label for="approve_note" class="form-label">Note (opzionale):</label>
+                        <textarea class="form-control form-control-sm" 
+                                  id="approve_note" 
+                                  name="admin_note" 
+                                  rows="2"
+                                  placeholder="Note per l'approvazione..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100" 
+                            onclick="return confirm('Sei sicuro di voler approvare questa richiesta?')">
+                        ✅ Approva
+                    </button>
+                </form>
+                
+                <!-- Form rifiuto -->
+                <form method="POST" action="{{ url_for('admin_bp.registration_reject', registration_id=registration.id) }}">
+                    <div class="mb-2">
+                        <label for="reject_note" class="form-label">Motivo rifiuto *:</label>
+                        <textarea class="form-control form-control-sm" 
+                                  id="reject_note" 
+                                  name="admin_note" 
+                                  rows="2"
+                                  placeholder="Specifica il motivo del rifiuto..."
+                                  required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100" 
+                            onclick="return confirm('Sei sicuro di voler rifiutare questa richiesta?')">
+                        ❌ Rifiuta
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center">
+                <p class="text-muted mb-0">
+                    Questa richiesta è già stata processata.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

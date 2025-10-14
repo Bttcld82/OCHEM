@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>📝 Gestione Registrazioni</h1>
+</div>
+
+<!-- Statistiche -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5>{{ stats.total }}</h5>
+                <small>Totale</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h5>{{ stats.submitted }}</h5>
+                <small>In attesa</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5>{{ stats.under_review }}</h5>
+                <small>In revisione</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5>{{ stats.approved }}</h5>
+                <small>Approvate</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <h5>{{ stats.rejected }}</h5>
+                <small>Rifiutate</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtri -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="status" class="form-label">Filtra per stato:</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Tutti gli stati</option>
+                    <option value="submitted" {{ 'selected' if status_filter == 'submitted' else '' }}>
+                        ⏳ In attesa
+                    </option>
+                    <option value="under_review" {{ 'selected' if status_filter == 'under_review' else '' }}>
+                        👀 In revisione
+                    </option>
+                    <option value="approved" {{ 'selected' if status_filter == 'approved' else '' }}>
+                        ✅ Approvate
+                    </option>
+                    <option value="rejected" {{ 'selected' if status_filter == 'rejected' else '' }}>
+                        ❌ Rifiutate
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">🔍 Filtra</button>
+                <a href="{{ url_for('admin_bp.registrations_list') }}" class="btn btn-outline-secondary">
+                    🔄 Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista Registrazioni -->
+<div class="card">
+    <div class="card-body">
+        {% if registrations %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Email</th>
+                            <th>Nome</th>
+                            <th>Laboratorio</th>
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in registrations %}
+                        <tr>
+                            <td>
+                                <small class="text-muted">
+                                    {{ reg.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                </small>
+                            </td>
+                            <td>
+                                <strong>{{ reg.email }}</strong>
+                            </td>
+                            <td>{{ reg.full_name or '-' }}</td>
+                            <td>
+                                {% if reg.desired_lab_name %}
+                                    <span class="badge bg-success">🆕 {{ reg.desired_lab_name }}</span>
+                                {% elif reg.target_lab_code %}
+                                    <span class="badge bg-info">🔗 {{ reg.target_lab_code }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if reg.status == 'submitted' %}
+                                    <span class="badge bg-warning text-dark">⏳ In attesa</span>
+                                {% elif reg.status == 'under_review' %}
+                                    <span class="badge bg-info">👀 In revisione</span>
+                                {% elif reg.status == 'approved' %}
+                                    <span class="badge bg-success">✅ Approvata</span>
+                                {% elif reg.status == 'rejected' %}
+                                    <span class="badge bg-danger">❌ Rifiutata</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin_bp.registration_detail', registration_id=reg.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    👁️ Dettagli
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted">
+                    {% if status_filter %}
+                        Nessuna registrazione trovata per il filtro selezionato.
+                    {% else %}
+                        Nessuna richiesta di registrazione presente.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

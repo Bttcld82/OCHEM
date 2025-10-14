@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>👥 Utenti del Laboratorio</h1>
+        <p class="text-muted mb-0">
+            <strong>{{ lab.name }}</strong> ({{ lab.code }})
+            {% if lab.city %} - {{ lab.city }}{% endif %}
+        </p>
+    </div>
+    <div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            ➕ Aggiungi Utente Esistente
+        </button>
+        <a href="{{ url_for('admin_bp.labs_list') }}" class="btn btn-secondary">
+            ⬅️ Torna ai Laboratori
+        </a>
+    </div>
+</div>
+
+<!-- Informazioni Laboratorio -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Stato:</dt>
+                    <dd class="col-sm-9">
+                        {% if lab.is_active %}
+                            <span class="badge bg-success">✅ Attivo</span>
+                        {% else %}
+                            <span class="badge bg-danger">❌ Inattivo</span>
+                        {% endif %}
+                    </dd>
+                    
+                    {% if lab.contact_email %}
+                    <dt class="col-sm-3">Email:</dt>
+                    <dd class="col-sm-9">{{ lab.contact_email }}</dd>
+                    {% endif %}
+                    
+                    {% if lab.contact_phone %}
+                    <dt class="col-sm-3">Telefono:</dt>
+                    <dd class="col-sm-9">{{ lab.contact_phone }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+            <div class="col-md-4 text-end">
+                <p class="mb-0">
+                    <strong>{{ lab_users|length }}</strong> utenti totali
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista Utenti -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">👥 Utenti Associati</h5>
+    </div>
+    <div class="card-body">
+        {% if lab_users %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Utente</th>
+                            <th>Email</th>
+                            <th>Ruolo</th>
+                            <th>Stato</th>
+                            <th>Ultimo Accesso</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user, role in lab_users %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <strong>{{ user.name }}</strong>
+                                        {% if user.has_role('admin') %}
+                                            <span class="badge bg-primary ms-1">👑 Admin</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ role.name }}</span>
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">✅ Attivo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">❌ Inattivo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.last_login_at %}
+                                    <small class="text-muted">
+                                        {{ user.last_login_at.strftime('%d/%m/%Y %H:%M') }}
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted">Mai</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_bp.user_detail', user_id=user.id) }}" 
+                                       class="btn btn-outline-info" 
+                                       title="Dettagli Utente">
+                                        👁️
+                                    </a>
+                                    <button class="btn btn-outline-secondary" 
+                                            onclick="changeUserRole({{ user.id }}, '{{ role.name }}')"
+                                            title="Cambia Ruolo">
+                                        🔄
+                                    </button>
+                                    <button class="btn btn-outline-danger" 
+                                            onclick="removeUser({{ user.id }}, '{{ user.name }}')"
+                                            title="Rimuovi dal Lab">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted">
+                    Nessun utente associato a questo laboratorio.
+                </p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    ➕ Aggiungi Primo Utente
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal per Aggiungere Utente Esistente -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">➕ Aggiungi Utente Esistente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_bp.add_existing_user_to_lab', lab_id=lab.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Utente:</label>
+                        <input type="email" 
+                               class="form-control" 
+                               id="email" 
+                               name="email" 
+                               placeholder="utente@example.com"
+                               required>
+                        <div class="form-text">
+                            L'utente deve già esistere nel sistema.
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role_name" class="form-label">Ruolo nel Laboratorio:</label>
+                        <select class="form-select" id="role_name" name="role_name" required>
+                            <option value="">Seleziona ruolo...</option>
+                            {% for role in lab_roles %}
+                                <option value="{{ role.name }}">
+                                    {{ role.name }}
+                                    {% if role.description %} - {{ role.description }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiungi Utente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per Cambiare Ruolo -->
+<div class="modal fade" id="changeRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🔄 Cambia Ruolo Utente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="changeRoleForm" method="POST">
+                <div class="modal-body">
+                    <p>Cambia il ruolo dell'utente nel laboratorio <strong>{{ lab.name }}</strong>:</p>
+                    <div class="mb-3">
+                        <label for="new_role_name" class="form-label">Nuovo Ruolo:</label>
+                        <select class="form-select" id="new_role_name" name="role_name" required>
+                            {% for role in lab_roles %}
+                                <option value="{{ role.name }}">{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiorna Ruolo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function changeUserRole(userId, currentRole) {
+    document.getElementById('new_role_name').value = currentRole;
+    document.getElementById('changeRoleForm').action = 
+        `/admin/labs/{{ lab.id }}/users/${userId}/update-role`;
+    
+    new bootstrap.Modal(document.getElementById('changeRoleModal')).show();
+}
+
+function removeUser(userId, userName) {
+    if (confirm(`Sei sicuro di voler rimuovere ${userName} da questo laboratorio?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/labs/{{ lab.id }}/users/${userId}/remove`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white text-center">
+                <h4 class="mb-0">
+                    📝 Registrazione Piattaforma OCHEM
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6>🎯 Benvenuto!</h6>
+                    <p class="mb-0">Compila il modulo per richiedere l'accesso alla piattaforma. La tua richiesta sarà revisionata da un amministratore.</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="full_name" class="form-label">👤 Nome Completo *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="full_name" 
+                                   name="full_name" 
+                                   placeholder="Es: Mario Rossi"
+                                   value="{{ request.form.full_name or '' }}"
+                                   required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">📧 Email *</label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   placeholder="mario.rossi@esempio.it"
+                                   value="{{ request.form.email or '' }}"
+                                   required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">🔒 Password *</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="password" 
+                               name="password" 
+                               placeholder="Minimo 10 caratteri"
+                               required>
+                        <div class="form-text">La password deve essere di almeno 10 caratteri.</div>
+                    </div>
+                    
+                    <hr>
+                    <h6>🏢 Informazioni Laboratorio</h6>
+                    <p class="text-muted small">Scegli una delle due opzioni:</p>
+                    
+                    <div class="mb-3">
+                        <label for="desired_lab_name" class="form-label">🆕 Nuovo Laboratorio</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="desired_lab_name" 
+                               name="desired_lab_name" 
+                               placeholder="Nome del nuovo laboratorio da creare"
+                               value="{{ request.form.desired_lab_name or '' }}">
+                        <div class="form-text">Se vuoi creare un nuovo laboratorio, inserisci il nome qui.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="target_lab_code" class="form-label">🔗 Unisciti a Laboratorio Esistente</label>
+                        <select class="form-control" id="target_lab_code" name="target_lab_code">
+                            <option value="">-- Seleziona un laboratorio esistente --</option>
+                            {% for lab in labs %}
+                                <option value="{{ lab.code }}" 
+                                        {{ 'selected' if request.form.target_lab_code == lab.code else '' }}>
+                                    {{ lab.code }} - {{ lab.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Se vuoi unirti a un laboratorio esistente, selezionalo qui.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="note" class="form-label">💬 Note Aggiuntive</label>
+                        <textarea class="form-control" 
+                                  id="note" 
+                                  name="note" 
+                                  rows="3"
+                                  placeholder="Fornisci dettagli aggiuntivi sulla tua richiesta...">{{ request.form.note or '' }}</textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('auth_bp.login') }}" class="btn btn-outline-secondary">
+                            ❌ Annulla
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            📝 Invia Richiesta
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="mt-3 text-center">
+            <small class="text-muted">
+                Hai già un account? 
+                <a href="{{ url_for('auth_bp.login') }}" class="text-decoration-none">
+                    Accedi qui
+                </a>
+            </small>
+        </div>
+    </div>
+</div>
+
+<script>
+// Script per gestire la selezione mutualmente esclusiva
+document.addEventListener('DOMContentLoaded', function() {
+    const newLabInput = document.getElementById('desired_lab_name');
+    const existingLabSelect = document.getElementById('target_lab_code');
+    
+    newLabInput.addEventListener('input', function() {
+        if (this.value.trim()) {
+            existingLabSelect.value = '';
+        }
+    });
+    
+    existingLabSelect.addEventListener('change', function() {
+        if (this.value) {
+            newLabInput.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

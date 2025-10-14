@@ -188,6 +188,10 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_bp.lab_users', lab_id=lab.id) }}" 
+                                       class="btn btn-outline-info" title="Gestisci Utenti">
+                                        👥
+                                    </a>
                                     <a href="{{ url_for('admin_bp.labs_edit', lab_id=lab.id) }}" 
                                        class="btn btn-outline-primary" title="Modifica">
                                         <i class="fas fa-edit"></i>
@@ -256,11 +260,15 @@
                     <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Distribuzione Geografica</h6>
                 </div>
                 <div class="card-body">
-                    {% set cities = labs|groupby('city') %}
-                    {% for city, city_labs in cities %}
+                    {% set cities_dict = {} %}
+                    {% for lab in labs %}
+                        {% set city_name = lab.city or 'Non specificato' %}
+                        {% if cities_dict.update({city_name: cities_dict.get(city_name, 0) + 1}) %}{% endif %}
+                    {% endfor %}
+                    {% for city, count in cities_dict.items() %}
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>{{ city or 'Non specificato' }}</span>
-                        <span class="badge bg-secondary">{{ city_labs|length }}</span>
+                        <span>{{ city }}</span>
+                        <span class="badge bg-secondary">{{ count }}</span>
                     </div>
                     {% endfor %}
                 </div>
