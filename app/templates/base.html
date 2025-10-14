@@ -9,10 +9,29 @@
 <body class="bg-light">
   <nav class="navbar navbar-dark bg-dark">
     <div class="container">
-      <a class="navbar-brand" href="{{ url_for('main.index') }}">OCHEM</a>
-      <div>
-        <a class="btn btn-outline-light me-2" href="{{ url_for('admin_bp.dashboard') }}">Admin</a>
-        <a class="btn btn-outline-light" href="{{ url_for('dati.upload_index') }}">Upload Dati</a>
+      <a class="navbar-brand" href="{{ url_for('main.index') }}">🧪 OCHEM</a>
+      <div class="d-flex align-items-center">
+        {% if current_user.is_authenticated %}
+          {% if current_user.has_role('admin') %}
+            <a class="btn btn-outline-light me-2" href="{{ url_for('admin_bp.dashboard') }}">
+              🔧 Admin
+            </a>
+          {% endif %}
+          <a class="btn btn-outline-light me-2" href="{{ url_for('dati.upload_index') }}">
+            📊 Upload Dati
+          </a>
+          <div class="navbar-text me-3">
+            Ciao, <strong>{{ current_user.name or current_user.email.split('@')[0] }}</strong>
+          </div>
+          <a class="btn btn-outline-danger btn-sm" href="{{ url_for('auth_bp.logout') }}">
+            🚪 Logout
+          </a>
+        {% else %}
+          <a class="btn btn-outline-success" href="{{ url_for('auth_bp.login') }}">
+            🔑 Login
+          </a>
+        {% endif %}
+      </div>
     </div>
   </nav>
   <main class="container my-4">

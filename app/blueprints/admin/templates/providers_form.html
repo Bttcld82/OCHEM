@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if provider %}Modifica Fornitore - Admin OCHEM{% else %}Nuovo Fornitore - Admin OCHEM{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                {% if provider %}
+                    ✏️ Modifica Fornitore: {{ provider.name }}
+                {% else %}
+                    ➕ Nuovo Fornitore
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">Configurazione fornitore o partner commerciale</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.providers_list') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Torna alla Lista
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Form Principale -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-building"></i> 
+                        {% if provider %}Modifica Dati{% else %}Dati Fornitore{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() if form }}
+                        <div class="row g-3">
+                            <!-- Codice Fornitore -->
+                            <div class="col-md-6">
+                                <label class="form-label required">Codice Fornitore *</label>
+                                {% if form %}
+                                    {{ form.code(class="form-control", placeholder="es. ACME, SIGMA, MERK...") }}
+                                    {% for error in form.code.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% else %}
+                                <input type="text" name="code" class="form-control" 
+                                       value="{{ provider.code if provider else '' }}" 
+                                       placeholder="es. ACME, SIGMA, MERK..."
+                                       required>
+                                {% endif %}
+                                <div class="form-text">Codice identificativo del fornitore</div>
+                            </div>
+
+                            <!-- Nome Fornitore -->
+                            <div class="col-md-6">
+                                <label class="form-label required">Nome Fornitore *</label>
+                                {% if form %}
+                                    {{ form.name(class="form-control", placeholder="es. ACME Corporation, Sigma-Aldrich...") }}
+                                    {% for error in form.name.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% else %}
+                                <input type="text" name="name" class="form-control" 
+                                       value="{{ provider.name if provider else '' }}" 
+                                       placeholder="es. ACME Corporation, Sigma-Aldrich..."
+                                       required>
+                                {% endif %}
+                                <div class="form-text">Nome completo della ditta fornitrice</div>
+                            </div>
+                        </div>
+
+                        <!-- Pulsanti Azione -->
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <div>
+                                <button type="submit" class="btn btn-warning text-dark">
+                                    <i class="fas fa-save"></i>
+                                    {% if provider %}Aggiorna Fornitore{% else %}Crea Fornitore{% endif %}
+                                </button>
+                                <a href="{{ url_for('admin_bp.providers_list') }}" class="btn btn-outline-secondary ms-2">
+                                    <i class="fas fa-times"></i> Annulla
+                                </a>
+                            </div>
+                            
+                            {% if provider %}
+                            <div>
+                                <form method="POST" action="{{ url_for('admin_bp.providers_delete', provider_id=provider.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('ATTENZIONE: Eliminare definitivamente il fornitore {{ provider.name }}?\n\nQuesta azione non può essere annullata.')">
+                                    <button type="submit" class="btn btn-outline-danger">
+                                        <i class="fas fa-trash"></i> Elimina Fornitore
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Informazioni -->
+        <div class="col-md-4">
+            <!-- Guida -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Guida</h6>
+                </div>
+                <div class="card-body small">
+                    <h6>Codice Fornitore:</h6>
+                    <ul class="mb-3">
+                        <li>Usa acronimi o codici brevi</li>
+                        <li>Mantieni la consistenza nella nomenclatura</li>
+                        <li>Evita spazi, usa trattini se necessario</li>
+                    </ul>
+
+                    <h6>Nome Fornitore:</h6>
+                    <ul class="mb-3">
+                        <li>Nome completo della ditta</li>
+                        <li>Include la forma societaria se rilevante</li>
+                        <li>Usa il nome ufficiale registrato</li>
+                    </ul>
+
+                    <h6>Esempi comuni:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr><td><code>SIGMA</code></td><td>Sigma-Aldrich Corporation</td></tr>
+                                <tr><td><code>MERK</code></td><td>Merck KGaA</td></tr>
+                                <tr><td><code>FLUKA</code></td><td>Fluka Analytical</td></tr>
+                                <tr><td><code>CARLO</code></td><td>Carlo Erba Reagents</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-warning py-2">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Attenzione:</strong> I fornitori eliminati non possono essere recuperati. Elimina solo se non sono in uso.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

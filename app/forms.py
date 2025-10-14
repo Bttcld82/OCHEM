@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SelectField, BooleanField, FloatField, IntegerField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional, NumberRange, ValidationError
-from app.models import Unit, Technique, Lab, User, Parameter
+from app.models import Unit, Technique, Lab, User, Parameter, Provider
 
 
 class UnitForm(FlaskForm):
@@ -148,3 +148,19 @@ class SearchForm(FlaskForm):
     query = StringField('Buscar', validators=[Optional(), Length(max=100)])
     active_filter = SelectField('Status', choices=[('all', 'Todos'), ('active', 'Ativos'), ('inactive', 'Inativos')], default='all')
     submit = SubmitField('Filtrar')
+
+
+class ProviderForm(FlaskForm):
+    code = StringField('Codice Fornitore', validators=[DataRequired(), Length(min=1, max=20)])
+    name = StringField('Nome Fornitore', validators=[DataRequired(), Length(min=1, max=200)])
+    submit = SubmitField('Salva')
+
+    def __init__(self, original_code=None, *args, **kwargs):
+        super(ProviderForm, self).__init__(*args, **kwargs)
+        self.original_code = original_code
+
+    def validate_code(self, field):
+        if field.data != self.original_code:
+            provider = Provider.query.filter_by(code=field.data).first()
+            if provider:
+                raise ValidationError('Questo codice fornitore esiste già.')

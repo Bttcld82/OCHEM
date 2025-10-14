@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for
+from flask_login import login_required
 from app import db
 from app.models import Lab, User, Cycle, DocFile, Parameter
+from app.blueprints.auth.decorators import disclaimer_required, role_required
 
 # Crea il blueprint admin secondo instruction_admin.md
 admin_bp = Blueprint("admin_bp", __name__, template_folder="templates")
@@ -10,6 +12,9 @@ admin_bp = Blueprint("admin_bp", __name__, template_folder="templates")
 # ===========================
 
 @admin_bp.route("/dashboard")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def dashboard():
     """Dashboard amministrativa con statistiche riassuntive"""
     total_labs = db.session.query(Lab).count()

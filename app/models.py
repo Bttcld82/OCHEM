@@ -1,13 +1,14 @@
 # app/models.py
 from datetime import datetime
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
-# All necessary types are imported via db from Flask-SQLAlchemy, so this line can be removed.
 
 # ===========================
 # TABELLE CORE
 # ===========================
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'user'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -16,12 +17,48 @@ class User(db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     password_hash = db.Column(db.String(255), nullable=True)
     accepted_disclaimer_at = db.Column(db.DateTime, nullable=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     lab_roles = db.relationship('UserLabRole', back_populates='user', cascade='all, delete-orphan')
     uploads = db.relationship('UploadFile', back_populates='uploader')
+
+    @property
+    def name(self):
+        """Nome completo dell'utente"""
+        return f"{self.first_name} {self.last_name}"
+
+    def set_password(self, password):
+        """Imposta la password hash"""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Verifica la password"""
+        if not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, password)
+
+    def has_role(self, role_name):
+        """Verifica se l'utente ha un ruolo globale"""
+        # Per ora consideriamo admin come proprietà speciale
+        if role_name == "admin":
+            return self.email.startswith("admin")  # Implementazione temporanea
+        return False
+
+    def has_lab_role(self, lab_code, role_name):
+        """Verifica se l'utente ha un ruolo specifico per un laboratorio"""
+        from app.models import Role
+        for lab_role in self.lab_roles:
+            if (lab_role.lab_code == lab_code and 
+                lab_role.role.name == role_name):
+                return True
+        return False
+
+    def get_lab_roles(self, lab_code):
+        """Ottieni tutti i ruoli dell'utente per un laboratorio"""
+        return [lr.role.name for lr in self.lab_roles if lr.lab_code == lab_code]
 
 class Lab(db.Model):
     __tablename__ = 'lab'

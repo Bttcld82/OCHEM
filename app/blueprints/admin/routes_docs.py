@@ -1,7 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash
 from app import db
-from app.models import DocFile, Cycle, Provider, UploadFile, JobLog
-from datetime import datetime
+from app.models import DocFile, Cycle, UploadFile, JobLog
 from .routes_main import admin_bp
 
 # ===========================
@@ -53,83 +52,7 @@ def docs_delete(doc_id):
     flash("Documento eliminato con successo.", "success")
     return redirect(url_for("admin_bp.docs_list"))
 
-# ===========================
-# FORNITORI
-# ===========================
 
-@admin_bp.route("/providers")
-def providers_list():
-    """Lista fornitori"""
-    providers = Provider.query.order_by(Provider.name.asc()).all()
-    return render_template("providers_list.html", providers=providers)
-
-@admin_bp.route("/providers/new", methods=["GET", "POST"])
-def providers_new():
-    """Creazione nuovo fornitore"""
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        code = request.form.get("code", "").strip()
-        contact_email = request.form.get("contact_email", "").strip()
-        contact_phone = request.form.get("contact_phone", "").strip()
-        website = request.form.get("website", "").strip()
-        address = request.form.get("address", "").strip()
-        
-        if not name:
-            flash("Il nome è obbligatorio.", "danger")
-            return redirect(url_for("admin_bp.providers_new"))
-        
-        if code and Provider.query.filter_by(code=code).first():
-            flash("Codice già esistente.", "warning")
-            return redirect(url_for("admin_bp.providers_new"))
-        
-        provider = Provider(
-            name=name,
-            code=code or None,
-            contact_email=contact_email or None,
-            contact_phone=contact_phone or None,
-            website=website or None,
-            address=address or None
-        )
-        db.session.add(provider)
-        db.session.commit()
-        flash("Fornitore creato con successo.", "success")
-        return redirect(url_for("admin_bp.providers_list"))
-    
-    return render_template("providers_form.html", provider=None)
-
-@admin_bp.route("/providers/<int:provider_id>/edit", methods=["GET", "POST"])
-def providers_edit(provider_id):
-    """Modifica fornitore esistente"""
-    provider = Provider.query.get_or_404(provider_id)
-    
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        code = request.form.get("code", "").strip()
-        contact_email = request.form.get("contact_email", "").strip()
-        contact_phone = request.form.get("contact_phone", "").strip()
-        website = request.form.get("website", "").strip()
-        address = request.form.get("address", "").strip()
-        
-        if not name:
-            flash("Il nome è obbligatorio.", "danger")
-            return redirect(url_for("admin_bp.providers_edit", provider_id=provider.id))
-        
-        if code and Provider.query.filter(Provider.id != provider.id, Provider.code == code).first():
-            flash("Codice già usato da un altro fornitore.", "warning")
-            return redirect(url_for("admin_bp.providers_edit", provider_id=provider.id))
-        
-        provider.name = name
-        provider.code = code or None
-        provider.contact_email = contact_email or None
-        provider.contact_phone = contact_phone or None
-        provider.website = website or None
-        provider.address = address or None
-        provider.updated_at = datetime.utcnow()
-        db.session.commit()
-        flash("Fornitore aggiornato con successo.", "success")
-        return redirect(url_for("admin_bp.providers_list"))
-    
-    return render_template("providers_form.html", provider=provider)
 
 # ===========================
 # FILE UPLOAD E JOB LOG

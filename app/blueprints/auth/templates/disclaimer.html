@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark text-center">
+                <h4 class="mb-0">
+                    ⚠️ Disclaimer e Condizioni d'Uso
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>📋 Benvenuto nella Piattaforma OCHEM</h5>
+                    <p class="mb-0">Prima di procedere, è necessario accettare i termini e condizioni d'uso.</p>
+                </div>
+                
+                <div class="bg-light p-4 rounded mb-4" style="max-height: 300px; overflow-y: auto;">
+                    <h6><strong>Termini e Condizioni d'Uso</strong></h6>
+                    <p>L'accesso e l'utilizzo della piattaforma OCHEM sono regolati dalle seguenti condizioni:</p>
+                    
+                    <h6>🔒 Privacy e Sicurezza</h6>
+                    <ul>
+                        <li>I dati inseriti sono trattati secondo il Regolamento GDPR</li>
+                        <li>Le credenziali di accesso sono personali e non devono essere condivise</li>
+                        <li>È vietato accedere a dati non autorizzati</li>
+                    </ul>
+                    
+                    <h6>📊 Gestione Dati</h6>
+                    <ul>
+                        <li>I dati inseriti devono essere accurati e veritieri</li>
+                        <li>È vietata la manipolazione o alterazione non autorizzata dei dati</li>
+                        <li>L'utilizzo dei dati deve rispettare le finalità del sistema</li>
+                    </ul>
+                    
+                    <h6>⚖️ Responsabilità</h6>
+                    <ul>
+                        <li>L'utente è responsabile delle proprie azioni sulla piattaforma</li>
+                        <li>È vietato utilizzare il sistema per scopi illeciti</li>
+                        <li>L'amministratore si riserva il diritto di sospendere account in caso di violazioni</li>
+                    </ul>
+                    
+                    <h6>🔧 Utilizzo del Sistema</h6>
+                    <ul>
+                        <li>È vietato tentare di compromettere la sicurezza del sistema</li>
+                        <li>L'utilizzo deve essere conforme alle procedure operative</li>
+                        <li>È necessario segnalare eventuali malfunzionamenti o irregolarità</li>
+                    </ul>
+                    
+                    <p><small><em>Ultimo aggiornamento: Ottobre 2025</em></small></p>
+                </div>
+                
+                <form method="POST">
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               id="accept" 
+                               name="accept"
+                               required>
+                        <label class="form-check-label" for="accept">
+                            <strong>✅ Accetto i termini e le condizioni d'uso sopra elencati</strong>
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('auth_bp.logout') }}" class="btn btn-outline-secondary">
+                            ❌ Rifiuta ed Esci
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            ✅ Accetta e Continua
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="mt-3 text-center">
+            <small class="text-muted">
+                L'accettazione del disclaimer è obbligatoria per utilizzare la piattaforma.
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
