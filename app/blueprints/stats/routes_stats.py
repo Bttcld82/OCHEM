@@ -227,12 +227,14 @@ def control_charts(lab_code):
             selected_params = form.parameters.data or []
             selected_techs = form.techniques.data or []
             selected_cycles = form.cycles.data or []
-            days = int(form.days.data) if form.days.data else 30
+            days = int(form.days.data) if form.days.data and form.days.data != '' else None
             
             current_app.logger.info(f"Form submitted - Params: {selected_params}, Techs: {selected_techs}, Cycles: {selected_cycles}")
             
             # Carica i dati per il grafico
             if selected_params:  # Almeno un parametro deve essere selezionato
+                current_app.logger.info(f"Querying data for parameters: {selected_params}, techniques: {selected_techs}, cycles: {selected_cycles}, days: {days}")
+                
                 chart_data = get_control_chart_data(
                     lab_code=lab_code,
                     parameter_codes=selected_params,
@@ -241,11 +243,26 @@ def control_charts(lab_code):
                     limit_days=days
                 )
                 
+                current_app.logger.info(f"Chart data returned: {len(chart_data.get('x', []))} points")
+                
                 # Genera il grafico HTML usando Plotly Python
                 if chart_data and len(chart_data.get('x', [])) > 0:
                     chart_html = generate_plotly_chart(chart_data, lab_code)
                 else:
-                    flash("Nessun dato trovato per i filtri selezionati.", "warning")
+                    # Debug: Verificare se ci sono dati senza filtro temporale
+                    debug_data = get_control_chart_data(
+                        lab_code=lab_code,
+                        parameter_codes=selected_params,
+                        technique_codes=selected_techs if selected_techs else None,
+                        cycle_codes=selected_cycles if selected_cycles else None,
+                        limit_days=None  # Nessun limite temporale
+                    )
+                    current_app.logger.info(f"Debug query (no time limit): {len(debug_data.get('x', []))} points")
+                    
+                    if len(debug_data.get('x', [])) > 0:
+                        flash(f"Trovati {len(debug_data.get('x', []))} dati storici per questi parametri, ma nessuno negli ultimi {days} giorni. Prova ad aumentare i giorni.", "warning")
+                    else:
+                        flash("Nessun dato trovato per i parametri/filtri selezionati.", "warning")
             else:
                 flash("Seleziona almeno un parametro per visualizzare il grafico.", "info")
         
@@ -268,6 +285,36 @@ def generate_plotly_chart(chart_data, lab_code):
     # Crea il grafico
     fig = go.Figure()
     
+    # Prepara i dati per il hover
+    hover_texts = []
+    for i in range(len(chart_data['x'])):
+        parameter_name = chart_data.get('parameter_names', ['N/A'] * len(chart_data['x']))[i] if i < len(chart_data.get('parameter_names', [])) else 'N/A'
+        parameter_code = chart_data.get('parameter_codes', ['N/A'] * len(chart_data['x']))[i] if i < len(chart_data.get('parameter_codes', [])) else 'N/A'
+        technique_name = chart_data.get('technique_names', ['N/A'] * len(chart_data['x']))[i] if i < len(chart_data.get('technique_names', [])) else 'N/A'
+        cycle_name = chart_data.get('cycle_names', ['N/A'] * len(chart_data['x']))[i] if i < len(chart_data.get('cycle_names', [])) else 'N/A'
+        provider_name = chart_data.get('provider_names', ['N/A'] * len(chart_data['x']))[i] if i < len(chart_data.get('provider_names', [])) else 'N/A'
+        
+        # Determina la performance
+        z_val = chart_data['y'][i]
+        abs_z = abs(z_val)
+        if abs_z < 2:
+            performance = "✅ Eccellente"
+        elif abs_z < 3:
+            performance = "⚠️ Accettabile"
+        else:
+            performance = "❌ Fuori Controllo"
+        
+        hover_text = (
+            f"<b>Data/Ora:</b> {chart_data['x'][i]}<br>"
+            f"<b>Parametro:</b> {parameter_name} ({parameter_code})<br>"
+            f"<b>Tecnica:</b> {technique_name}<br>"
+            f"<b>Ciclo PT:</b> {cycle_name}<br>"
+            f"<b>Provider:</b> {provider_name}<br>"
+            f"<b>Z-Score:</b> {z_val:.3f}<br>"
+            f"<b>Performance:</b> {performance}"
+        )
+        hover_texts.append(hover_text)
+
     # Trace principale con i dati
     fig.add_trace(go.Scatter(
         x=chart_data['x'],
@@ -279,7 +326,9 @@ def generate_plotly_chart(chart_data, lab_code):
             size=8,
             line=dict(color='white', width=1)
         ),
-        line=dict(color='blue', width=2)
+        line=dict(color='blue', width=2),
+        hovertemplate='%{text}<extra></extra>',
+        text=hover_texts
     ))
     
     # Linee di controllo
@@ -291,7 +340,8 @@ def generate_plotly_chart(chart_data, lab_code):
         y=[3, 3],
         mode='lines',
         name='UCL (+3σ)',
-        line=dict(color='red', dash='dash', width=2)
+        line=dict(color='red', dash='dash', width=2),
+        hoverinfo='skip'
     ))
     
     # Limite inferiore di controllo (-3σ)
@@ -300,7 +350,8 @@ def generate_plotly_chart(chart_data, lab_code):
         y=[-3, -3],
         mode='lines',
         name='LCL (-3σ)',
-        line=dict(color='red', dash='dash', width=2)
+        line=dict(color='red', dash='dash', width=2),
+        hoverinfo='skip'
     ))
     
     # Limiti di warning (±2σ)
@@ -309,7 +360,8 @@ def generate_plotly_chart(chart_data, lab_code):
         y=[2, 2],
         mode='lines',
         name='UWL (+2σ)',
-        line=dict(color='orange', dash='dot', width=1)
+        line=dict(color='orange', dash='dot', width=1),
+        hoverinfo='skip'
     ))
     
     fig.add_trace(go.Scatter(
@@ -317,7 +369,8 @@ def generate_plotly_chart(chart_data, lab_code):
         y=[-2, -2],
         mode='lines',
         name='LWL (-2σ)',
-        line=dict(color='orange', dash='dot', width=1)
+        line=dict(color='orange', dash='dot', width=1),
+        hoverinfo='skip'
     ))
     
     # Linea centrale (0σ)
@@ -326,7 +379,8 @@ def generate_plotly_chart(chart_data, lab_code):
         y=[0, 0],
         mode='lines',
         name='CL (0σ)',
-        line=dict(color='green', width=2)
+        line=dict(color='green', width=2),
+        hoverinfo='skip'
     ))
     
     # Layout del grafico
@@ -337,7 +391,7 @@ def generate_plotly_chart(chart_data, lab_code):
         yaxis=dict(range=[-4, 4]),
         height=500,
         showlegend=True,
-        hovermode='x unified'
+        hovermode='closest'  # Cambiato da 'x unified' a 'closest' per hover individuale
     )
     
     # Converti in HTML

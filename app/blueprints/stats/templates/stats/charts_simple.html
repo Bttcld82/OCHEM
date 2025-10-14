@@ -132,60 +132,125 @@
     
     <!-- Tabella Dati -->
     {% if chart_data and chart_data.x %}
-    <div class="card">
-        <div class="card-header">
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h6 class="mb-0">
-                <i class="fas fa-table"></i>
-                Dati del Grafico ({{ chart_data.x|length }} punti)
+                <i class="fas fa-table text-primary"></i>
+                Dati del Control Chart
             </h6>
+            <div class="d-flex gap-2">
+                <span class="badge bg-primary">{{ chart_data.x|length }} punti</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" onclick="exportTableData()" title="Esporta CSV">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="selectAllRows()" title="Seleziona tutto">
+                        <i class="fas fa-check-square"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="table-responsive" style="max-height: 400px;">
-                <table class="table table-sm table-hover">
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 500px;">
+                <table class="table table-hover mb-0">
                     <thead class="table-light sticky-top">
                         <tr>
-                            <th>#</th>
+                            <th width="40">
+                                <input type="checkbox" id="selectAllData" class="form-check-input">
+                            </th>
+                            <th width="60">#</th>
                             <th>Data/Ora</th>
-                            <th>Z-Score</th>
-                            <th>Performance</th>
-                            <th>Stato Controllo</th>
+                            <th width="180">Parametro</th>
+                            <th width="140">Tecnica</th>
+                            <th width="140">Ciclo PT</th>
+                            <th width="120">Provider</th>
+                            <th width="120">Z-Score</th>
+                            <th width="150">Performance</th>
+                            <th width="150">Stato Controllo</th>
+                            <th width="80">Azioni</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for i in range(chart_data.x|length) %}
                         {% set z_val = chart_data.y[i] %}
                         {% set abs_z = z_val|abs %}
-                        <tr>
-                            <td>{{ loop.index }}</td>
-                            <td>{{ chart_data.x[i] }}</td>
-                            <td class="text-end">
-                                <span class="badge {% if abs_z < 2 %}bg-success{% elif abs_z < 3 %}bg-warning{% else %}bg-danger{% endif %}">
-                                    {{ "%.3f"|format(z_val) }}
-                                </span>
+                        <tr class="{% if abs_z >= 3 %}table-danger{% elif abs_z >= 2 %}table-warning{% endif %}">
+                            <td>
+                                <input type="checkbox" class="form-check-input data-checkbox" value="{{ loop.index }}">
+                            </td>
+                            <td>
+                                <div class="fw-bold text-primary">{{ loop.index }}</div>
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ chart_data.x[i][:10] }}</div>
+                                <small class="text-muted">{{ chart_data.x[i][11:16] if chart_data.x[i]|length > 10 else '' }}</small>
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ chart_data.parameter_names[i] if chart_data.parameter_names and i < chart_data.parameter_names|length else 'N/A' }}</div>
+                                <small class="text-muted">{{ chart_data.parameter_codes[i] if chart_data.parameter_codes and i < chart_data.parameter_codes|length else 'N/A' }}</small>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 130px;" title="{{ chart_data.technique_names[i] if chart_data.technique_names and i < chart_data.technique_names|length else 'N/A' }}">
+                                    {{ chart_data.technique_names[i] if chart_data.technique_names and i < chart_data.technique_names|length else 'N/A' }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 130px;" title="{{ chart_data.cycle_names[i] if chart_data.cycle_names and i < chart_data.cycle_names|length else 'N/A' }}">
+                                    {{ chart_data.cycle_names[i] if chart_data.cycle_names and i < chart_data.cycle_names|length else 'N/A' }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 110px;" title="{{ chart_data.provider_names[i] if chart_data.provider_names and i < chart_data.provider_names|length else 'N/A' }}">
+                                    {{ chart_data.provider_names[i] if chart_data.provider_names and i < chart_data.provider_names|length else 'N/A' }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-center">
+                                    <span class="badge fs-6 {% if abs_z < 2 %}bg-success{% elif abs_z < 3 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                        {{ "%.3f"|format(z_val) }}
+                                    </span>
+                                </div>
                             </td>
                             <td>
                                 {% if abs_z < 2 %}
-                                    <i class="fas fa-check-circle text-success"></i> Eccellente
+                                    <span class="badge bg-success">✅ Eccellente</span>
                                 {% elif abs_z < 3 %}
-                                    <i class="fas fa-exclamation-triangle text-warning"></i> Accettabile
+                                    <span class="badge bg-warning text-dark">⚠️ Accettabile</span>
                                 {% else %}
-                                    <i class="fas fa-times-circle text-danger"></i> Scarso
+                                    <span class="badge bg-danger">❌ Scarso</span>
                                 {% endif %}
                             </td>
                             <td>
                                 {% if abs_z >= 3 %}
-                                    <span class="badge bg-danger">Fuori Controllo</span>
+                                    <span class="badge bg-danger">🚨 Fuori Controllo</span>
                                 {% elif abs_z >= 2 %}
-                                    <span class="badge bg-warning text-dark">Warning</span>
+                                    <span class="badge bg-warning text-dark">⚠️ Warning</span>
                                 {% else %}
-                                    <span class="badge bg-success">Sotto Controllo</span>
+                                    <span class="badge bg-success">✅ Sotto Controllo</span>
                                 {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info btn-sm" 
+                                            onclick="showDataDetails({{ loop.index0 }}, '{{ chart_data.x[i] }}', {{ z_val }}, '{{ chart_data.parameter_names[i] if chart_data.parameter_names and i < chart_data.parameter_names|length else 'N/A' }}', '{{ chart_data.technique_names[i] if chart_data.technique_names and i < chart_data.technique_names|length else 'N/A' }}', '{{ chart_data.cycle_names[i] if chart_data.cycle_names and i < chart_data.cycle_names|length else 'N/A' }}', '{{ chart_data.provider_names[i] if chart_data.provider_names and i < chart_data.provider_names|length else 'N/A' }}')" 
+                                            title="Dettagli">
+                                        <i class="fas fa-info-circle"></i>
+                                    </button>
+                                    {% if abs_z >= 2 %}
+                                    <button class="btn btn-outline-warning btn-sm" 
+                                            onclick="flagForReview({{ loop.index0 }})" 
+                                            title="Segna per revisione">
+                                        <i class="fas fa-flag"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+        </div>
             
             <!-- Statistiche Riassunto -->
             <div class="row mt-3 text-center">
@@ -253,6 +318,142 @@
 <!-- HTMX per multi-select dipendenti -->
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 <script>
-console.log('Template con HTMX caricato per multi-select dipendenti');
+console.log('Template con HTMX caricato per multi-select dipendenti e tabella avanzata');
+
+// Funzioni per la gestione della tabella 
+function selectAllRows() {
+    const selectAll = document.getElementById('selectAllData');
+    const checkboxes = document.querySelectorAll('.data-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+// Event listener per il checkbox "seleziona tutto"
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllData');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', selectAllRows);
+    }
+});
+
+function exportTableData() {
+    const table = document.querySelector('.table');
+    if (!table) return;
+    
+    let csv = 'Punto,Data/Ora,Z-Score,Performance,Stato Controllo\n';
+    
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach((row, index) => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 6) {
+            const punto = cells[1].textContent.trim();
+            const dataOra = cells[2].textContent.trim().replace(/\n/g, ' ');
+            const zScore = cells[3].textContent.trim();
+            const performance = cells[4].textContent.trim();
+            const stato = cells[5].textContent.trim();
+            
+            csv += `"${punto}","${dataOra}","${zScore}","${performance}","${stato}"\n`;
+        }
+    });
+    
+    // Download del CSV
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'control_chart_data_{{ lab_code }}.csv';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function showDataDetails(index, dateTime, zScore, parameterName = 'N/A', techniqueName = 'N/A', cycleName = 'N/A', providerName = 'N/A') {
+    const modalContent = `
+        <div class="modal fade" id="dataDetailModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-info-circle text-primary"></i>
+                            Dettagli Punto Dati #${index + 1}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <dl class="row">
+                            <dt class="col-sm-4">Data/Ora:</dt>
+                            <dd class="col-sm-8">${dateTime}</dd>
+                            
+                            <dt class="col-sm-4">Parametro:</dt>
+                            <dd class="col-sm-8"><strong>${parameterName}</strong></dd>
+                            
+                            <dt class="col-sm-4">Tecnica:</dt>
+                            <dd class="col-sm-8">${techniqueName}</dd>
+                            
+                            <dt class="col-sm-4">Ciclo PT:</dt>
+                            <dd class="col-sm-8">${cycleName}</dd>
+                            
+                            <dt class="col-sm-4">Provider:</dt>
+                            <dd class="col-sm-8">${providerName}</dd>
+                            
+                            <dt class="col-sm-4">Z-Score:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge ${Math.abs(zScore) >= 3 ? 'bg-danger' : Math.abs(zScore) >= 2 ? 'bg-warning text-dark' : 'bg-success'}">
+                                    ${zScore.toFixed(3)}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Valore Assoluto:</dt>
+                            <dd class="col-sm-8">${Math.abs(zScore).toFixed(3)}</dd>
+                            
+                            <dt class="col-sm-4">Interpretazione:</dt>
+                            <dd class="col-sm-8">
+                                ${Math.abs(zScore) >= 3 ? 
+                                    '<span class="text-danger">🚨 <strong>Fuori controllo</strong> - Richiede azione immediata</span>' : 
+                                    Math.abs(zScore) >= 2 ? 
+                                        '<span class="text-warning">⚠️ <strong>Warning</strong> - Monitoraggio raccomandato</span>' : 
+                                        '<span class="text-success">✅ <strong>Sotto controllo</strong> - Performance eccellente</span>'
+                                }
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                        ${Math.abs(zScore) >= 2 ? 
+                            '<button type="button" class="btn btn-warning" onclick="flagForReview(' + index + ')">Segna per Revisione</button>' : 
+                            ''
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Rimuovi modal esistente se presente
+    const existingModal = document.getElementById('dataDetailModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Aggiungi il nuovo modal
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    
+    // Mostra il modal
+    const modal = new bootstrap.Modal(document.getElementById('dataDetailModal'));
+    modal.show();
+}
+
+function flagForReview(index) {
+    // Simula il flag per revisione
+    alert(`Punto dati #${index + 1} segnato per revisione.\n\nQuesta funzione può essere collegata al sistema di notifiche per avvisare il responsabile qualità.`);
+    
+    // Chiudi il modal se aperto
+    const modal = bootstrap.Modal.getInstance(document.getElementById('dataDetailModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
 </script>
 {% endblock %}

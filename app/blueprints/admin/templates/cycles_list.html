@@ -221,7 +221,7 @@
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     {% if cycle.status == 'pending_review' %}
-                                    <a href="{{ url_for('admin_bp.cycle_review', id=cycle.id) }}" 
+                                    <a href="{{ url_for('admin_bp.cycle_review', cycle_id=cycle.id) }}" 
                                        class="btn btn-primary" title="Rivedi Ciclo">
                                         <i class="fas fa-eye"></i>
                                     </a>
@@ -385,7 +385,7 @@
     // View cycle details
     function viewCycleDetails(cycleId) {
         // Implementare modal o redirect per dettagli
-        window.location.href = `{{ url_for('admin_bp.cycle_review', id=0) }}`.replace('0', cycleId);
+        window.location.href = `{{ url_for('admin_bp.cycle_review', cycle_id=0) }}`.replace('0', cycleId);
     }
 </script>
 {% endblock %}

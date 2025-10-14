@@ -173,12 +173,15 @@ class ChartsForm(FlaskForm):
     cycles = SelectMultipleField('Cicli', coerce=str)
     days = SelectField('Periodo', 
                       choices=[
-                          ('7', '7 giorni'),
-                          ('30', '30 giorni'),
-                          ('60', '60 giorni'),
-                          ('90', '90 giorni')
+                          ('7', 'Ultimi 7 giorni'),
+                          ('30', 'Ultimi 30 giorni'),
+                          ('60', 'Ultimi 60 giorni'),
+                          ('90', 'Ultimi 90 giorni'),
+                          ('180', 'Ultimi 6 mesi'),
+                          ('365', 'Ultimo anno'),
+                          ('', 'Tutti i dati disponibili')
                       ], 
-                      default='30')
+                      default='90')
     submit = SubmitField('Aggiorna Grafico')
     
     def __init__(self, lab_code=None, *args, **kwargs):

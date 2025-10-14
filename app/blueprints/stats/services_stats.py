@@ -281,13 +281,30 @@ def get_control_chart_data(lab_code, parameter_codes=None, limit_days=30, techni
         cycle_codes: Lista codici cicli (opzionale)
         
     Returns:
-        dict: Dati formattati per Plotly
+        dict: Dati formattati per Plotly con nomi completi
     """
-    from app.models import Result, ZScore
+    from app.models import Result, ZScore, Technique, Provider
     from datetime import datetime, timedelta
     
-    # Query base per z-scores
-    query = db.session.query(ZScore).join(Result).filter(Result.lab_code == lab_code)
+    # Query con join per ottenere nomi completi
+    query = db.session.query(
+        ZScore, 
+        Result, 
+        Parameter, 
+        Technique, 
+        Cycle, 
+        Provider
+    ).join(
+        Result, ZScore.result_id == Result.id
+    ).outerjoin(
+        Parameter, Result.parameter_code == Parameter.code
+    ).outerjoin(
+        Technique, Result.technique_code == Technique.code  
+    ).outerjoin(
+        Cycle, Result.cycle_code == Cycle.code
+    ).outerjoin(
+        Provider, Cycle.provider_id == Provider.id
+    ).filter(Result.lab_code == lab_code)
     
     # Applica filtri multipli
     if parameter_codes:
@@ -300,21 +317,48 @@ def get_control_chart_data(lab_code, parameter_codes=None, limit_days=30, techni
         query = query.filter(Result.cycle_code.in_(cycle_codes))
     
     # Filtra per data se limit_days specificato
-    if limit_days:
+    if limit_days is not None and limit_days > 0:
         cutoff_date = datetime.utcnow() - timedelta(days=limit_days)
         query = query.filter(Result.submitted_at >= cutoff_date)
     
+    # Debug: Log della query
+    from flask import current_app
+    try:
+        current_app.logger.info(f"Query SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
+    except Exception:
+        current_app.logger.info(f"Query being executed for lab_code={lab_code}, parameters={parameter_codes}")
+    
     # Ordina per data
-    z_scores = query.order_by(Result.submitted_at).all()
+    results = query.order_by(Result.submitted_at).all()
     
-    if not z_scores:
-        return {"x": [], "y": [], "parameter_codes": []}
+    current_app.logger.info(f"Query returned {len(results)} results")
     
-    # Prepara i dati per il grafico
+    if not results:
+        # Debug: Verifica se esistono dati di base per questi parametri
+        basic_query = db.session.query(Result).filter(Result.lab_code == lab_code)
+        if parameter_codes:
+            basic_query = basic_query.filter(Result.parameter_code.in_(parameter_codes))
+        basic_results = basic_query.all()
+        current_app.logger.info(f"Basic query (only Results) returned {len(basic_results)} results")
+        
+        # Verifica se ci sono ZScore associati
+        zscore_query = db.session.query(ZScore).join(Result).filter(Result.lab_code == lab_code)
+        if parameter_codes:
+            zscore_query = zscore_query.filter(Result.parameter_code.in_(parameter_codes))
+        zscore_results = zscore_query.all()
+        current_app.logger.info(f"ZScore query returned {len(zscore_results)} results")
+        
+        return {"x": [], "y": [], "parameter_codes": [], "parameter_names": [], "technique_names": [], "cycle_names": [], "provider_names": []}
+    
+    # Prepara i dati per il grafico con nomi completi
     chart_data = {
-        "x": [z.result.submitted_at.strftime('%Y-%m-%d %H:%M') if z.result else 'N/A' for z in z_scores],
-        "y": [float(z.z) for z in z_scores],
-        "parameter_codes": [z.result.parameter_code if z.result else 'N/A' for z in z_scores],
+        "x": [result.Result.submitted_at.strftime('%Y-%m-%d %H:%M') if result.Result else 'N/A' for result in results],
+        "y": [float(result.ZScore.z) for result in results],
+        "parameter_codes": [result.Result.parameter_code if result.Result else 'N/A' for result in results],
+        "parameter_names": [result.Parameter.name if result.Parameter else 'N/A' for result in results],
+        "technique_names": [result.Technique.name if result.Technique else 'N/A' for result in results],
+        "cycle_names": [result.Cycle.name if result.Cycle else 'N/A' for result in results],
+        "provider_names": [result.Provider.name if result.Provider else 'N/A' for result in results],
         "colors": []
     }
     
