@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Laboratori - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">🏢 Gestione Laboratori</h1>
+            <p class="text-muted mb-0">Configurazione laboratori partecipanti ai PT</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <a href="{{ url_for('admin_bp.labs_new') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuovo Laboratorio
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtri e Ricerca -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Ricerca per nome o codice</label>
+                    <input type="text" name="q" class="form-control" value="{{ q or '' }}" 
+                           placeholder="es. Lab Central, LAB001...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Stato</label>
+                    <select name="active" class="form-select">
+                        <option value="">Tutti</option>
+                        <option value="1" {% if request.args.get('active') == '1' %}selected{% endif %}>Solo Attivi</option>
+                        <option value="0" {% if request.args.get('active') == '0' %}selected{% endif %}>Solo Disattivi</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Filtra
+                    </button>
+                    <a href="{{ url_for('admin_bp.labs_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiche Rapide -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-flask fa-2x text-primary mb-2"></i>
+                    <h5>{{ labs|length }}</h5>
+                    <small class="text-muted">Laboratori Totali</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h5>{{ labs|selectattr('is_active', 'equalto', true)|list|length }}</h5>
+                    <small class="text-muted">Laboratori Attivi</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-users fa-2x text-info mb-2"></i>
+                    <h5>{{ total_users or 0 }}</h5>
+                    <small class="text-muted">Utenti Associati</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-2x text-warning mb-2"></i>
+                    <h5>{{ total_participations or 0 }}</h5>
+                    <small class="text-muted">Partecipazioni PT</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabella Laboratori -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-table"></i> 
+                Laboratori Trovati: {{ labs|length }}
+            </h6>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-download"></i> Esporta
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-csv"></i> CSV</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel"></i> Excel</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf"></i> Report PDF</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if labs %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Laboratorio</th>
+                            <th>Codice</th>
+                            <th>Città</th>
+                            <th>Contatti</th>
+                            <th>Utenti</th>
+                            <th>Partecipazioni</th>
+                            <th>Stato</th>
+                            <th>Registrato</th>
+                            <th width="150">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lab in labs %}
+                        <tr class="{% if not lab.is_active %}table-secondary{% endif %}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if lab.is_active %}
+                                        <i class="fas fa-circle text-success me-2" title="Attivo"></i>
+                                    {% else %}
+                                        <i class="fas fa-circle text-secondary me-2" title="Disattivo"></i>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-bold">{{ lab.name }}</div>
+                                        {% if lab.code %}
+                                        <small class="text-muted">ID: {{ lab.code }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if lab.code %}
+                                    <code>{{ lab.code }}</code>
+                                {% else %}
+                                    <span class="text-muted">N/C</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lab.city %}
+                                    <span class="badge bg-info">{{ lab.city }}</span>
+                                {% else %}
+                                    <span class="text-muted">N/S</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="small">
+                                    {% if lab.contact_email %}
+                                        <div><i class="fas fa-envelope text-primary me-1"></i>{{ lab.contact_email }}</div>
+                                    {% endif %}
+                                    {% if lab.contact_phone %}
+                                        <div><i class="fas fa-phone text-success me-1"></i>{{ lab.contact_phone }}</div>
+                                    {% endif %}
+                                    {% if not lab.contact_email and not lab.contact_phone %}
+                                        <span class="text-muted">Nessun contatto</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="text-muted">Da implementare</span>
+                            </td>
+                            <td>
+                                <span class="text-muted">Da implementare</span>
+                            </td>
+                            <td>
+                                {% if lab.is_active %}
+                                    <span class="badge bg-success">✅ Attivo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">⏸️ Disattivo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ lab.created_at.strftime('%d/%m/%Y') }}</div>
+                                <small class="text-muted">{{ lab.created_at.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_bp.labs_edit', lab_id=lab.id) }}" 
+                                       class="btn btn-outline-primary" title="Modifica">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    
+                                    <form method="POST" action="{{ url_for('admin_bp.lab_toggle_active', lab_id=lab.id) }}" 
+                                          class="d-inline">
+                                        {% if lab.is_active %}
+                                        <button type="submit" class="btn btn-outline-warning" 
+                                                title="Disattiva" onclick="return confirm('Disattivare {{ lab.name }}?')">
+                                            <i class="fas fa-pause"></i>
+                                        </button>
+                                        {% else %}
+                                        <button type="submit" class="btn btn-outline-success" 
+                                                title="Riattiva" onclick="return confirm('Riattivare {{ lab.name }}?')">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        {% endif %}
+                                    </form>
+                                    
+                                    {% if lab.users|length == 0 and lab.participations|length == 0 %}
+                                    <form method="POST" action="{{ url_for('admin_bp.labs_delete', lab_id=lab.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('ATTENZIONE: Eliminare definitivamente {{ lab.name }}?\n\nQuesta azione non può essere annullata.')">
+                                        <button type="submit" class="btn btn-outline-danger" title="Elimina">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <button class="btn btn-outline-secondary" disabled 
+                                            title="Laboratorio con {{ lab.users|length }} utenti e {{ lab.participations|length }} partecipazioni">
+                                        <i class="fas fa-lock"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-flask fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nessun Laboratorio Trovato</h5>
+                <p class="text-muted">
+                    {% if q %}
+                        Non sono stati trovati laboratori con la ricerca "{{ q }}".
+                    {% else %}
+                        Non sono ancora stati registrati laboratori nel sistema.
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('admin_bp.labs_new') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Registra Primo Laboratorio
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistiche Dettagliate -->
+    {% if labs %}
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Distribuzione Geografica</h6>
+                </div>
+                <div class="card-body">
+                    {% set cities = labs|groupby('city') %}
+                    {% for city, city_labs in cities %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ city or 'Non specificato' }}</span>
+                        <span class="badge bg-secondary">{{ city_labs|length }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Statistiche Attivazione</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="activationChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Azioni Bulk -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-tools"></i> Azioni Bulk</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-success w-100" onclick="bulkActivate()">
+                                <i class="fas fa-play"></i> Attiva Tutti i Selezionati
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-warning w-100" onclick="bulkDeactivate()">
+                                <i class="fas fa-pause"></i> Disattiva Tutti i Selezionati
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-info w-100" onclick="exportSelected()">
+                                <i class="fas fa-download"></i> Esporta Selezionati
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if labs %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Grafico attivazione laboratori
+    const ctx = document.getElementById('activationChart').getContext('2d');
+    const activeCount = {{ labs|selectattr('is_active', 'equalto', true)|list|length }};
+    const inactiveCount = {{ labs|selectattr('is_active', 'equalto', false)|list|length }};
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Attivi', 'Disattivi'],
+            datasets: [{
+                data: [activeCount, inactiveCount],
+                backgroundColor: ['#28a745', '#6c757d'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Funzioni bulk (placeholder)
+    function bulkActivate() {
+        alert('Funzione bulk attivazione in sviluppo');
+    }
+
+    function bulkDeactivate() {
+        alert('Funzione bulk disattivazione in sviluppo');
+    }
+
+    function exportSelected() {
+        alert('Funzione export in sviluppo');
+    }
+</script>
+{% endif %}
+{% endblock %}

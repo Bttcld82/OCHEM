@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if lab %}Modifica Laboratorio - Admin OCHEM{% else %}Nuovo Laboratorio - Admin OCHEM{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                {% if lab %}
+                    ✏️ Modifica Laboratorio: {{ lab.name }}
+                {% else %}
+                    🏢 Nuovo Laboratorio
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">Registrazione laboratorio per partecipazione PT</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.labs_list') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Torna alla Lista
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Form Principale -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-flask"></i> 
+                        {% if lab %}Modifica Dati{% else %}Dati Laboratorio{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        <div class="row g-3">
+                            <!-- Nome Laboratorio -->
+                            <div class="col-md-8">
+                                <label class="form-label required">Nome Laboratorio *</label>
+                                <input type="text" name="name" class="form-control" 
+                                       value="{{ lab.name if lab else '' }}" 
+                                       placeholder="es. Laboratorio Centrale Regionale, Lab Analisi XYZ..."
+                                       required>
+                                <div class="form-text">Denominazione ufficiale completa del laboratorio</div>
+                            </div>
+
+                            <!-- Codice Identificativo -->
+                            <div class="col-md-4">
+                                <label class="form-label">Codice ID</label>
+                                <input type="text" name="code" class="form-control" 
+                                       value="{{ lab.code if lab else '' }}" 
+                                       placeholder="es. LAB001, LCR..."
+                                       style="text-transform: uppercase;">
+                                <div class="form-text">Codice breve univoco (opzionale)</div>
+                            </div>
+
+                            <!-- Città -->
+                            <div class="col-md-6">
+                                <label class="form-label">Città</label>
+                                <input type="text" name="city" class="form-control" 
+                                       value="{{ lab.city if lab else '' }}" 
+                                       placeholder="es. Milano, Roma, Napoli..."
+                                       list="city-suggestions">
+                                <datalist id="city-suggestions">
+                                    <option value="Milano">
+                                    <option value="Roma">
+                                    <option value="Napoli">
+                                    <option value="Torino">
+                                    <option value="Palermo">
+                                    <option value="Genova">
+                                    <option value="Bologna">
+                                    <option value="Firenze">
+                                    <option value="Bari">
+                                    <option value="Catania">
+                                </datalist>
+                                <div class="form-text">Località principale del laboratorio</div>
+                            </div>
+
+                            <!-- Email Contatto -->
+                            <div class="col-md-6">
+                                <label class="form-label">Email di Contatto</label>
+                                <input type="email" name="contact_email" class="form-control" 
+                                       value="{{ lab.contact_email if lab else '' }}" 
+                                       placeholder="lab@esempio.it">
+                                <div class="form-text">Email principale per comunicazioni PT</div>
+                            </div>
+
+                            <!-- Telefono -->
+                            <div class="col-md-6">
+                                <label class="form-label">Telefono</label>
+                                <input type="tel" name="contact_phone" class="form-control" 
+                                       value="{{ lab.contact_phone if lab else '' }}" 
+                                       placeholder="+39 02 1234567">
+                                <div class="form-text">Numero di telefono principale</div>
+                            </div>
+
+                            <!-- Stato Attivazione -->
+                            {% if lab %}
+                            <div class="col-md-6">
+                                <label class="form-label">Stato</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="is_active" 
+                                           id="is_active" {% if lab.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        Laboratorio Attivo
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    Solo i laboratori attivi possono partecipare ai nuovi cicli PT
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Pulsanti Azione -->
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    {% if lab %}Aggiorna Laboratorio{% else %}Registra Laboratorio{% endif %}
+                                </button>
+                                <a href="{{ url_for('admin_bp.labs_list') }}" class="btn btn-outline-secondary ms-2">
+                                    <i class="fas fa-times"></i> Annulla
+                                </a>
+                            </div>
+                            
+                            {% if lab %}
+                            <div>
+                                {% set user_count = lab.users|length %}
+                                {% set participation_count = lab.participations|length %}
+                                {% if user_count == 0 and participation_count == 0 %}
+                                <form method="POST" action="{{ url_for('admin_bp.labs_delete', lab_id=lab.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('ATTENZIONE: Eliminare definitivamente il laboratorio {{ lab.name }}?\n\nQuesta azione non può essere annullata.')">
+                                    <button type="submit" class="btn btn-outline-danger">
+                                        <i class="fas fa-trash"></i> Elimina Laboratorio
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button class="btn btn-outline-secondary" disabled 
+                                        title="Laboratorio con {{ user_count }} utenti e {{ participation_count }} partecipazioni">
+                                    <i class="fas fa-lock"></i> In Uso ({{ user_count }}U, {{ participation_count }}P)
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Informazioni -->
+        <div class="col-md-4">
+            <!-- Guida -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Guida Rapida</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Nome:</strong> Denominazione ufficiale completa
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Codice:</strong> Identificativo breve univoco
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Email:</strong> Indirizzo per comunicazioni PT
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Attivo:</strong> Solo i lab attivi partecipano
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Statistiche (solo in modifica) -->
+            {% if lab %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiche Attività</h6>
+                </div>
+                <div class="card-body">
+                    {% set user_count = lab.users|length %}
+                    {% set participation_count = lab.participations|length %}
+                    {% set result_count = lab.results|length if lab.results else 0 %}
+                    
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="h4 text-primary">{{ user_count }}</div>
+                            <small class="text-muted">Utenti</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-success">{{ participation_count }}</div>
+                            <small class="text-muted">PT</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-info">{{ result_count }}</div>
+                            <small class="text-muted">Risultati</small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    <div class="text-center">
+                        <div class="mb-2">
+                            {% if lab.is_active %}
+                                <span class="badge bg-success">✅ Laboratorio Attivo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">⏸️ Laboratorio Disattivo</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">
+                            Registrato: {{ lab.created_at.strftime('%d/%m/%Y') }}
+                            <br>
+                            Aggiornato: {{ lab.updated_at.strftime('%d/%m/%Y') }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Utenti Associati -->
+            {% if lab.users %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-users"></i> Utenti Associati</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for user in lab.users[:5] %}
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">{{ user.full_name }}</div>
+                                    <small class="text-muted">{{ user.username }}</small>
+                                </div>
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Attivo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Disattivo</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if lab.users|length > 5 %}
+                        <div class="list-group-item px-0 py-2 text-center">
+                            <small class="text-muted">
+                                ... e altri {{ lab.users|length - 5 }} utenti
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mt-2">
+                        <a href="{{ url_for('admin_bp.users_list', lab_id=lab.id) }}" 
+                           class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-eye"></i> Visualizza Tutti
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Ultime Partecipazioni PT -->
+            {% if lab.participations %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-recycle"></i> Partecipazioni PT</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for participation in lab.participations[:5] %}
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">{{ participation.cycle.code }}</div>
+                                    <small class="text-muted">{{ participation.created_at.strftime('%d/%m/%Y') }}</small>
+                                </div>
+                                <span class="badge bg-info">{{ participation.cycle.status }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if lab.participations|length > 5 %}
+                        <div class="list-group-item px-0 py-2 text-center">
+                            <small class="text-muted">
+                                ... e altre {{ lab.participations|length - 5 }} partecipazioni
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const nameInput = document.querySelector('input[name="name"]');
+        const codeInput = document.querySelector('input[name="code"]');
+        
+        // Validazione form
+        form.addEventListener('submit', function(e) {
+            if (!nameInput.value.trim()) {
+                e.preventDefault();
+                nameInput.focus();
+                alert('Il nome del laboratorio è obbligatorio.');
+                return false;
+            }
+        });
+        
+        // Auto-generazione codice dal nome
+        nameInput.addEventListener('input', function() {
+            if (!codeInput.value && this.value) {
+                // Genera un codice suggerito
+                const words = this.value.trim().split(' ');
+                let suggestion = '';
+                
+                if (words.length >= 2) {
+                    // Prendi le prime 2-3 lettere di ogni parola
+                    suggestion = words.slice(0, 3).map(word => 
+                        word.substring(0, word.length >= 4 ? 3 : 2).toUpperCase()
+                    ).join('');
+                } else {
+                    // Se una sola parola, prendi le prime 6 lettere
+                    suggestion = this.value.substring(0, 6).toUpperCase();
+                }
+                
+                codeInput.placeholder = `Suggerito: ${suggestion}`;
+            }
+        });
+        
+        // Formattazione automatica codice
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+        
+        // Formattazione telefono
+        const phoneInput = document.querySelector('input[name="contact_phone"]');
+        phoneInput.addEventListener('input', function() {
+            // Rimuovi tutto tranne numeri, +, spazi e parentesi
+            this.value = this.value.replace(/[^+\d\s\(\)-]/g, '');
+        });
+    });
+</script>
+{% endblock %}

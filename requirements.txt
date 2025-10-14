@@ -1,0 +1,13 @@
+Flask>=3.0
+Flask-SQLAlchemy>=3.1
+Flask-Migrate>=4.0
+python-dotenv>=1.0
+
+# Per popolamento database e calcoli statistici
+pandas>=2.0
+numpy>=1.24
+Faker>=20.0
+
+# Per database SQLite
+SQLAlchemy>=2.0
+alembic>=1.12

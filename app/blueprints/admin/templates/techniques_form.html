@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if technique %}Modifica Tecnica - Admin OCHEM{% else %}Nuova Tecnica - Admin OCHEM{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                {% if technique %}
+                    ✏️ Modifica Tecnica: {{ technique.name }}
+                {% else %}
+                    ➕ Nuova Tecnica Analitica
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">Configurazione metodo di analisi</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.techniques_list') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Torna alla Lista
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Form Principale -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-microscope"></i> 
+                        {% if technique %}Modifica Dati{% else %}Dati Tecnica{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() if form }}
+                        <div class="row g-3">
+                            <!-- Codice Tecnica -->
+                            <div class="col-md-6">
+                                <label class="form-label required">Codice Tecnica *</label>
+                                {% if form %}
+                                    {{ form.code(class="form-control", placeholder="es. ICP-MS, GC-MS, HPLC...") }}
+                                    {% for error in form.code.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% else %}
+                                <input type="text" name="code" class="form-control" 
+                                       value="{{ technique.code if technique else '' }}" 
+                                       placeholder="es. ICP-MS, GC-MS, HPLC..."
+                                       required>
+                                {% endif %}
+                                <div class="form-text">Acronimo o codice identificativo della tecnica</div>
+                            </div>
+
+                            <!-- Nome Tecnica -->
+                            <div class="col-md-6">
+                                <label class="form-label required">Nome Tecnica *</label>
+                                {% if form %}
+                                    {{ form.name(class="form-control", placeholder="es. Spettrometria di massa al plasma...") }}
+                                    {% for error in form.name.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% else %}
+                                <input type="text" name="name" class="form-control" 
+                                       value="{{ technique.name if technique else '' }}" 
+                                       placeholder="es. Spettrometria di massa al plasma..."
+                                       required>
+                                {% endif %}
+                                <div class="form-text">Nome completo della tecnica analitica</div>
+                            </div>
+                        </div>
+
+                        <!-- Pulsanti Azione -->
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i>
+                                    {% if technique %}Aggiorna Tecnica{% else %}Crea Tecnica{% endif %}
+                                </button>
+                                <a href="{{ url_for('admin_bp.techniques_list') }}" class="btn btn-outline-secondary ms-2">
+                                    <i class="fas fa-times"></i> Annulla
+                                </a>
+                            </div>
+                            
+                            {% if technique %}
+                            <div>
+                                {% set parameter_usage = technique.parameters|length if technique.parameters else 0 %}
+                                {% if parameter_usage == 0 %}
+                                <form method="POST" action="{{ url_for('admin_bp.techniques_delete', technique_id=technique.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('ATTENZIONE: Eliminare definitivamente la tecnica {{ technique.name }}?\n\nQuesta azione non può essere annullata.')">
+                                    <button type="submit" class="btn btn-outline-danger">
+                                        <i class="fas fa-trash"></i> Elimina Tecnica
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-danger" disabled 
+                                        title="Impossibile eliminare: tecnica usata da {{ parameter_usage }} parametri">
+                                    <i class="fas fa-lock"></i> In Uso ({{ parameter_usage }})
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Informazioni -->
+        <div class="col-md-4">
+            {% if technique %}
+            <!-- Statistiche Utilizzo -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiche Utilizzo</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-12">
+                            <div class="border-bottom pb-2 mb-2">
+                                <h4 class="text-primary mb-0">{{ technique.parameters|length if technique.parameters else 0 }}</h4>
+                                <small class="text-muted">Parametri Collegati</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if technique.parameters %}
+                    <h6 class="mt-3 mb-2">Parametri che usano questa tecnica:</h6>
+                    <div class="list-group list-group-flush small">
+                        {% for parameter in technique.parameters[:5] %}
+                        <div class="list-group-item px-0 py-1">
+                            <i class="fas fa-vial text-muted"></i> {{ parameter.name }}
+                        </div>
+                        {% endfor %}
+                        {% if technique.parameters|length > 5 %}
+                        <div class="list-group-item px-0 py-1 text-muted">
+                            ... e altri {{ technique.parameters|length - 5 }} parametri
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Guida -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Guida</h6>
+                </div>
+                <div class="card-body small">
+                    <h6>Codice Tecnica:</h6>
+                    <ul class="mb-3">
+                        <li>Usa acronimi standard (ICP-MS, GC-MS)</li>
+                        <li>Mantieni la consistenza nella nomenclatura</li>
+                        <li>Evita spazi, usa trattini se necessario</li>
+                    </ul>
+
+                    <h6>Nome Tecnica:</h6>
+                    <ul class="mb-3">
+                        <li>Nome completo e descrittivo</li>
+                        <li>Include il tipo di strumentazione</li>
+                        <li>Usa la terminologia tecnica standard</li>
+                    </ul>
+
+                    <h6>Esempi comuni:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr><td><code>ICP-MS</code></td><td>Spettrometria di massa al plasma</td></tr>
+                                <tr><td><code>GC-MS</code></td><td>Gas cromatografia - spettrometria</td></tr>
+                                <tr><td><code>HPLC</code></td><td>Cromatografia liquida ad alta prestazione</td></tr>
+                                <tr><td><code>AAS</code></td><td>Spettrometria di assorbimento atomico</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info py-2">
+                        <i class="fas fa-lightbulb"></i> 
+                        <strong>Suggerimento:</strong> Le tecniche eliminate non possono essere recuperate. Assicurati che non siano in uso prima di eliminarle.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

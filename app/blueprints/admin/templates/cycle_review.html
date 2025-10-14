@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Revisione Ciclo {{ cycle.code }} - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">🔍 Revisione Ciclo: {{ cycle.code }}</h1>
+            <p class="text-muted mb-0">Validazione e approvazione per pubblicazione</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.cycles_pending') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Torna alla Lista
+            </a>
+        </div>
+    </div>
+
+    <!-- Informazioni Ciclo -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Dettagli Ciclo</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">Codice:</dt>
+                                <dd class="col-sm-8"><code>{{ cycle.code }}</code></dd>
+                                
+                                <dt class="col-sm-4">Provider:</dt>
+                                <dd class="col-sm-8">
+                                    {% if cycle.provider %}
+                                        <span class="badge bg-info">{{ cycle.provider.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">Non specificato</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Stato:</dt>
+                                <dd class="col-sm-8">
+                                    {% if cycle.status == 'pending_review' %}
+                                        <span class="badge bg-warning">🕒 In Revisione</span>
+                                    {% elif cycle.status == 'changes_requested' %}
+                                        <span class="badge bg-info">📝 Modifiche Richieste</span>
+                                    {% elif cycle.status == 'published' %}
+                                        <span class="badge bg-success">✅ Pubblicato</span>
+                                    {% elif cycle.status == 'rejected' %}
+                                        <span class="badge bg-danger">❌ Rigettato</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-5">Creato:</dt>
+                                <dd class="col-sm-7">{{ cycle.created_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                
+                                <dt class="col-sm-5">Aggiornato:</dt>
+                                <dd class="col-sm-7">{{ cycle.updated_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                
+                                <dt class="col-sm-5">Parametri:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge bg-primary">{{ params|length }} parametri</span>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Azioni Rapide -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-bolt"></i> Azioni Rapide</h6>
+                </div>
+                <div class="card-body">
+                    {% if cycle.status == 'pending_review' or cycle.status == 'changes_requested' %}
+                    <form method="POST" class="mb-3">
+                        <div class="d-grid gap-2">
+                            <button type="submit" name="action" value="approve" 
+                                    class="btn btn-success btn-sm"
+                                    onclick="return confirm('Confermi la pubblicazione del ciclo {{ cycle.code }}?')">
+                                <i class="fas fa-check"></i> Approva e Pubblica
+                            </button>
+                            <button type="submit" name="action" value="request_changes" 
+                                    class="btn btn-warning btn-sm">
+                                <i class="fas fa-edit"></i> Richiedi Modifiche
+                            </button>
+                            <button type="submit" name="action" value="reject" 
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Confermi il rifiuto del ciclo {{ cycle.code }}?')">
+                                <i class="fas fa-times"></i> Rigetta Ciclo
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-info alert-sm mb-0">
+                        <i class="fas fa-lock"></i>
+                        Ciclo già processato. Stato: <strong>{{ cycle.status }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Validazione Pre-Pubblicazione -->
+    {% set missing_pdf = params | selectattr('doc_id', 'none') | list %}
+    {% set missing_xpt = params | selectattr('assigned_xpt', 'none') | list %}
+    {% set missing_spt = params | selectattr('assigned_spt', 'none') | list %}
+    
+    {% if missing_pdf or missing_xpt or missing_spt %}
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+        <div class="d-flex align-items-start">
+            <i class="fas fa-exclamation-triangle fa-2x me-3 mt-1"></i>
+            <div>
+                <h6 class="alert-heading">⚠️ Attenzione: Validazione Pre-Pubblicazione</h6>
+                <ul class="mb-2">
+                    {% if missing_pdf %}
+                    <li><strong>{{ missing_pdf|length }} parametri</strong> senza documento PDF associato</li>
+                    {% endif %}
+                    {% if missing_xpt %}
+                    <li><strong>{{ missing_xpt|length }} parametri</strong> senza valore XPT assegnato</li>
+                    {% endif %}
+                    {% if missing_spt %}
+                    <li><strong>{{ missing_spt|length }} parametri</strong> senza valore SigmaPT assegnato</li>
+                    {% endif %}
+                </ul>
+                <p class="mb-0">Correggere questi problemi prima della pubblicazione.</p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success border-0 shadow-sm mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-check-circle fa-2x me-3"></i>
+            <div>
+                <h6 class="alert-heading mb-1">✅ Validazione Superata</h6>
+                <p class="mb-0">Tutti i parametri hanno documenti PDF e valori XPT/SigmaPT assegnati.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabella Parametri Dettagliata -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-vial"></i> Parametri del Ciclo ({{ params|length }})</h6>
+        </div>
+        <div class="card-body p-0">
+            {% if params %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Parametro</th>
+                            <th>Unità</th>
+                            <th>Tecnica</th>
+                            <th>XPT Assegnato</th>
+                            <th>SigmaPT</th>
+                            <th>Documento PDF</th>
+                            <th>Stato Validazione</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for param in params %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">Parametro {{ param.parameter_code }}</div>
+                                <small class="text-muted">{{ param.parameter_code }}</small>
+                            </td>
+                            <td>
+                                <span class="text-muted">N/D</span>
+                            </td>
+                            <td>
+                                <span class="text-muted">N/D</span>
+                            </td>
+                            <td>
+                                {% if param.xpt %}
+                                    <span class="text-success fw-bold">{{ param.xpt }}</span>
+                                {% else %}
+                                    <span class="text-danger">❌ Mancante</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if param.sigma_pt %}
+                                    <span class="text-success fw-bold">{{ param.sigma_pt }}</span>
+                                {% else %}
+                                    <span class="text-danger">❌ Mancante</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-muted">Da implementare</span>
+                            </td>
+                            <td>
+                                {% if param.xpt and param.sigma_pt %}
+                                    <span class="badge bg-success">✅ Completo</span>
+                                {% else %}
+                                    <span class="badge bg-warning">⚠️ Incompleto</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h5 class="text-warning">Nessun Parametro Associato</h5>
+                <p class="text-muted">Questo ciclo non ha parametri associati e non può essere pubblicato.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Note e Commenti -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-comment"></i> Note di Revisione</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="action" value="add_note">
+                        <div class="mb-3">
+                            <label class="form-label">Aggiungi nota per l'operatore:</label>
+                            <textarea name="review_note" class="form-control" rows="3" 
+                                    placeholder="Inserisci commenti, richieste di modifica o osservazioni..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-plus"></i> Aggiungi Nota
+                        </button>
+                    </form>
+                    
+                    <!-- Note esistenti (se implementate nel model) -->
+                    {% if cycle.review_notes %}
+                    <hr>
+                    <div class="mt-3">
+                        {% for note in cycle.review_notes %}
+                        <div class="border-start border-primary border-3 ps-3 mb-2">
+                            <small class="text-muted">{{ note.created_at.strftime('%d/%m/%Y %H:%M') }} - {{ note.author }}</small>
+                            <p class="mb-0">{{ note.content }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Conferma azioni critiche
+    document.addEventListener('DOMContentLoaded', function() {
+        const rejectBtn = document.querySelector('button[value="reject"]');
+        if (rejectBtn) {
+            rejectBtn.addEventListener('click', function(e) {
+                if (!confirm('ATTENZIONE: Stai per rigettare definitivamente il ciclo. Questa azione non può essere annullata. Continuare?')) {
+                    e.preventDefault();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

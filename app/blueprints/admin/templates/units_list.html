@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Unità di Misura - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">📏 Gestione Unità di Misura</h1>
+            <p class="text-muted mb-0">Configurazione unità di misura per parametri analitici</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.units_new') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuova Unità
+            </a>
+            <a href="{{ url_for('admin_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtri e Ricerca -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label mb-1">Ricerca</label>
+                    <input type="text" name="q" class="form-control" 
+                           value="{{ q or '' }}" 
+                           placeholder="Cerca per codice o descrizione...">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-search"></i> Cerca
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    {% if q %}
+                    <a href="{{ url_for('admin_bp.units_list') }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-times"></i> Cancella
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Risultati -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-list"></i> 
+                Unità di Misura 
+                <span class="badge bg-primary ms-1">{{ units|length }}</span>
+            </h6>
+        </div>
+
+        {% if units %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="15%">Codice</th>
+                        <th width="35%">Descrizione</th>
+                        <th width="15%" class="text-center">Parametri</th>
+                        <th width="15%" class="text-center">Data Creazione</th>
+                        <th width="20%" class="text-center">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for unit in units %}
+                    <tr>
+                        <td>
+                            <code class="bg-light px-2 py-1 rounded">{{ unit.code }}</code>
+                        </td>
+                        <td>
+                            <div class="fw-medium">{{ unit.description }}</div>
+                        </td>
+                        <td class="text-center">
+                            {% set param_count = unit.parameters|length if unit.parameters else 0 %}
+                            <span class="badge bg-{{ 'success' if param_count > 0 else 'secondary' }}">
+                                {{ param_count }}
+                            </span>
+                        </td>
+                        <td class="text-center text-muted small">
+                            {{ unit.created_at.strftime('%d/%m/%Y') if unit.created_at }}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin_bp.units_edit', unit_id=unit.id) }}" 
+                                   class="btn btn-outline-primary" 
+                                   title="Modifica">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                
+                                {% if param_count == 0 %}
+                                <form method="POST" action="{{ url_for('admin_bp.units_delete', unit_id=unit.id) }}" 
+                                      class="d-inline" 
+                                      onsubmit="return confirm('Eliminare definitivamente l\'unità {{ unit.description }}?')">
+                                    <button type="submit" class="btn btn-outline-danger" title="Elimina">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-secondary" disabled
+                                        title="Impossibile eliminare: unità in uso">
+                                    <i class="fas fa-lock"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card-body text-center py-5">
+            <div class="text-muted">
+                <i class="fas fa-search fa-2x mb-3"></i>
+                <h5>Nessuna unità trovata</h5>
+                {% if q %}
+                <p>La ricerca "{{ q }}" non ha prodotto risultati.</p>
+                <a href="{{ url_for('admin_bp.units_list') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-list"></i> Mostra Tutte
+                </a>
+                {% else %}
+                <p>Non ci sono unità di misura configurate.</p>
+                <a href="{{ url_for('admin_bp.units_new') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Crea Prima Unità
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if units %}
+    <!-- Statistiche -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                    <h4 class="text-primary mb-1">{{ units|length }}</h4>
+                    <small class="text-muted">Unità Totali</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                    {% set units_in_use = 0 %}
+                    {% for unit in units %}
+                        {% if unit.parameters and unit.parameters|length > 0 %}
+                            {% set units_in_use = units_in_use + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    <h4 class="text-success mb-1">{{ units_in_use }}</h4>
+                    <small class="text-muted">In Uso</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-light">
+                <div class="card-body text-center">
+                    {% set total_params = 0 %}
+                    {% for unit in units %}
+                        {% if unit.parameters %}
+                            {% set total_params = total_params + unit.parameters|length %}
+                        {% endif %}
+                    {% endfor %}
+                    <h4 class="text-info mb-1">{{ total_params }}</h4>
+                    <small class="text-muted">Parametri Collegati</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

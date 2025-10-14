@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if parameter %}Modifica Parametro - Admin OCHEM{% else %}Nuovo Parametro - Admin OCHEM{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                {% if parameter %}
+                    ✏️ Modifica Parametro: {{ parameter.name }}
+                {% else %}
+                    ➕ Nuovo Parametro Analitico
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">Configurazione parametro per cicli PT</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.parameters_list') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Torna alla Lista
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Form Principale -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-vial"></i> 
+                        {% if parameter %}Modifica Dati{% else %}Dati Parametro{% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() if form }}
+                        <div class="row g-3">
+                            <!-- Nome Parametro -->
+                            <div class="col-md-6">
+                                <label class="form-label required">Nome Parametro *</label>
+                                {% if form %}
+                                    {{ form.name(class="form-control", placeholder="es. Piombo, Cadmio, pH...") }}
+                                    {% for error in form.name.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% else %}
+                                <input type="text" name="name" class="form-control" 
+                                       value="{{ parameter.name if parameter else '' }}" 
+                                       placeholder="es. Piombo, Cadmio, pH..."
+                                       required>
+                                {% endif %}
+                                <div class="form-text">Nome completo del parametro analitico</div>
+                            </div>
+
+                            <!-- Codice -->
+                            <div class="col-md-6">
+                                <label class="form-label">Codice/Simbolo *</label>
+                                {% if form %}
+                                    {{ form.code(class="form-control", placeholder="es. Pb, Cd, pH...") }}
+                                    {% for error in form.code.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% else %}
+                                <input type="text" name="code" class="form-control" 
+                                       value="{{ parameter.code if parameter else '' }}" 
+                                       placeholder="es. Pb, Cd, pH...">
+                                {% endif %}
+                                <div class="form-text">Codice breve o simbolo chimico</div>
+                            </div>
+
+                            <!-- Unità di Misura -->
+                            <div class="col-md-6">
+                                <label class="form-label">Unità di Misura *</label>
+                                {% if form %}
+                                    {{ form.unit_code(class="form-select") }}
+                                    {% for error in form.unit_code.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% else %}
+                                <select name="unit_code" class="form-select">
+                                    <option value="">Seleziona unità...</option>
+                                    {% for unit in units %}
+                                    <option value="{{ unit.code }}" 
+                                            {% if parameter and parameter.unit_code == unit.code %}selected{% endif %}>
+                                        {{ unit.code }} - {{ unit.description }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% endif %}
+                                <div class="form-text">
+                                    Unità di misura standard. 
+                                    <a href="{{ url_for('admin_bp.units_new') }}" target="_blank" class="text-primary">
+                                        <i class="fas fa-plus"></i> Aggiungi nuova
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Tecnica Analitica -->
+                            <div class="col-md-6">
+                                <label class="form-label">Tecnica Analitica</label>
+                                <select name="technique_id" class="form-select">
+                                    <option value="">Seleziona tecnica...</option>
+                                    {% for technique in techniques %}
+                                    <option value="{{ technique.id }}" 
+                                            {% if parameter and parameter.technique_id == technique.id %}selected{% endif %}>
+                                        {{ technique.name }}
+                                        {% if technique.code %} ({{ technique.code }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    Metodo analitico utilizzato. 
+                                    <a href="{{ url_for('admin_bp.techniques_new') }}" target="_blank" class="text-primary">
+                                        <i class="fas fa-plus"></i> Aggiungi nuova
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Matrice -->
+                            <div class="col-md-6">
+                                <label class="form-label">Matrice</label>
+                                <input type="text" name="matrix" class="form-control" 
+                                       value="{{ parameter.matrix if parameter else '' }}" 
+                                       placeholder="es. Acqua, Suolo, Aria..."
+                                       list="matrix-suggestions">
+                                <datalist id="matrix-suggestions">
+                                    <option value="Acqua">
+                                    <option value="Suolo">
+                                    <option value="Aria">
+                                    <option value="Alimenti">
+                                    <option value="Sedimenti">
+                                    <option value="Rifiuti">
+                                    <option value="Tessuti biologici">
+                                </datalist>
+                                <div class="form-text">Tipo di campione o matrice di analisi</div>
+                            </div>
+
+                            <!-- Descrizione -->
+                            <div class="col-12">
+                                <label class="form-label">Descrizione</label>
+                                <textarea name="description" class="form-control" rows="3"
+                                          placeholder="Descrizione dettagliata del parametro, note metodologiche, riferimenti normativi...">{{ parameter.description if parameter else '' }}</textarea>
+                                <div class="form-text">Informazioni aggiuntive sul parametro (opzionale)</div>
+                            </div>
+                        </div>
+
+                        <!-- Pulsanti Azione -->
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    {% if parameter %}Aggiorna Parametro{% else %}Crea Parametro{% endif %}
+                                </button>
+                                <a href="{{ url_for('admin_bp.parameters_list') }}" class="btn btn-outline-secondary ms-2">
+                                    <i class="fas fa-times"></i> Annulla
+                                </a>
+                            </div>
+                            
+                            {% if parameter %}
+                            <div>
+                                {% set cycle_usage = parameter.cycle_parameters|length %}
+                                {% if cycle_usage == 0 %}
+                                <form method="POST" action="{{ url_for('admin_bp.parameters_delete', parameter_id=parameter.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('ATTENZIONE: Eliminare definitivamente il parametro {{ parameter.name }}?\n\nQuesta azione non può essere annullata.')">
+                                    <button type="submit" class="btn btn-outline-danger">
+                                        <i class="fas fa-trash"></i> Elimina Parametro
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button class="btn btn-outline-secondary" disabled title="Parametro utilizzato in {{ cycle_usage }} cicli">
+                                    <i class="fas fa-lock"></i> Utilizzato ({{ cycle_usage }} cicli)
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Informazioni -->
+        <div class="col-md-4">
+            <!-- Guida -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Guida Rapida</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Nome:</strong> Utilizzare denominazioni standard
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Codice:</strong> Simbolo chimico o abbreviazione
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Unità:</strong> Sempre specificare se quantitativo
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Tecnica:</strong> Metodo analitico principale
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Statistiche (solo in modifica) -->
+            {% if parameter %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiche Utilizzo</h6>
+                </div>
+                <div class="card-body">
+                    {% set cycle_count = parameter.cycle_parameters|length %}
+                    {% set result_count = parameter.results|length if parameter.results else 0 %}
+                    
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="h4 text-primary">{{ cycle_count }}</div>
+                            <small class="text-muted">Cicli</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="h4 text-success">{{ result_count }}</div>
+                            <small class="text-muted">Risultati</small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    <div class="text-center">
+                        <small class="text-muted">
+                            Creato: {{ parameter.created_at.strftime('%d/%m/%Y') }}
+                            <br>
+                            Aggiornato: {{ parameter.updated_at.strftime('%d/%m/%Y') }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cicli che utilizzano questo parametro -->
+            {% if parameter.cycle_parameters %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-recycle"></i> Utilizzo nei Cicli</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for cp in parameter.cycle_parameters[:5] %}
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">{{ cp.cycle.code }}</div>
+                                    <small class="text-muted">{{ cp.cycle.status }}</small>
+                                </div>
+                                <span class="badge bg-secondary">{{ cp.assigned_xpt or 'N/A' }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if parameter.cycle_parameters|length > 5 %}
+                        <div class="list-group-item px-0 py-2 text-center">
+                            <small class="text-muted">
+                                ... e altri {{ parameter.cycle_parameters|length - 5 }} cicli
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Validazione form lato client
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const nameInput = document.querySelector('input[name="name"]');
+        
+        form.addEventListener('submit', function(e) {
+            if (!nameInput.value.trim()) {
+                e.preventDefault();
+                nameInput.focus();
+                alert('Il nome del parametro è obbligatorio.');
+                return false;
+            }
+        });
+        
+        // Auto-suggest codice basato sul nome
+        nameInput.addEventListener('input', function() {
+            const codeInput = document.querySelector('input[name="code"]');
+            if (!codeInput.value && this.value) {
+                // Estrai simbolo chimico se possibile
+                const commonElements = {
+                    'piombo': 'Pb', 'cadmio': 'Cd', 'mercurio': 'Hg', 'arsenico': 'As',
+                    'cromo': 'Cr', 'nichel': 'Ni', 'rame': 'Cu', 'zinco': 'Zn',
+                    'ferro': 'Fe', 'alluminio': 'Al', 'calcio': 'Ca', 'magnesio': 'Mg'
+                };
+                
+                const name = this.value.toLowerCase();
+                for (const [element, symbol] of Object.entries(commonElements)) {
+                    if (name.includes(element)) {
+                        codeInput.value = symbol;
+                        break;
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

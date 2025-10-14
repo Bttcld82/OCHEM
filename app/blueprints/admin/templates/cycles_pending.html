@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Cicli in Revisione - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">⏳ Cicli in Attesa di Revisione</h1>
+            <p class="text-muted mb-0">Workflow approvazione cicli Proficiency Testing</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <a href="{{ url_for('admin_bp.cycles_list') }}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-list"></i> Tutti i Cicli
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtri e Ricerca -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Ricerca per codice o provider</label>
+                    <input type="text" name="q" class="form-control" value="{{ q or '' }}" 
+                           placeholder="es. PT2024-001, SigmaPT...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Stato</label>
+                    <select name="status" class="form-select">
+                        <option value="">Tutti gli stati</option>
+                        <option value="pending_review" {% if request.args.get('status')=='pending_review' %}selected{% endif %}>
+                            Pending Review
+                        </option>
+                        <option value="changes_requested" {% if request.args.get('status')=='changes_requested' %}selected{% endif %}>
+                            Modifiche Richieste
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Filtra
+                    </button>
+                    <a href="{{ url_for('admin_bp.cycles_pending') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabella Cicli -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">
+                <i class="fas fa-table"></i> 
+                Cicli Trovati: {{ cycles|length }}
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            {% if cycles %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Codice Ciclo</th>
+                            <th>Provider</th>
+                            <th>Data Creazione</th>
+                            <th>Parametri</th>
+                            <th>Stato</th>
+                            <th>Priorità</th>
+                            <th width="200">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cycle in cycles %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ cycle.code }}</div>
+                                <small class="text-muted">ID: {{ cycle.id }}</small>
+                            </td>
+                            <td>
+                                {% if cycle.provider %}
+                                    <span class="badge bg-info">{{ cycle.provider.name }}</span>
+                                {% else %}
+                                    <span class="text-muted">N/D</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ cycle.created_at.strftime('%d/%m/%Y') }}</div>
+                                <small class="text-muted">{{ cycle.created_at.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>
+                                {% set param_count = cycle.cycle_parameters|length %}
+                                <span class="badge bg-primary">{{ param_count }} parametri</span>
+                                {% if param_count == 0 %}
+                                    <br><small class="text-danger">⚠️ Nessun parametro</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if cycle.status == 'pending_review' %}
+                                    <span class="badge bg-warning">🕒 In Revisione</span>
+                                {% elif cycle.status == 'changes_requested' %}
+                                    <span class="badge bg-info">📝 Modifiche Richieste</span>
+                                {% elif cycle.status == 'draft' %}
+                                    <span class="badge bg-secondary">📄 Bozza</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set days_pending = (moment().date() - cycle.created_at.date()).days %}
+                                {% if days_pending > 7 %}
+                                    <span class="badge bg-danger">🔥 Alta ({{ days_pending }}g)</span>
+                                {% elif days_pending > 3 %}
+                                    <span class="badge bg-warning">⚡ Media ({{ days_pending }}g)</span>
+                                {% else %}
+                                    <span class="badge bg-success">✅ Normale ({{ days_pending }}g)</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_bp.cycle_review', id=cycle.id) }}" 
+                                       class="btn btn-primary" title="Rivedi Ciclo">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if cycle.status == 'pending_review' %}
+                                    <form method="POST" action="{{ url_for('admin_bp.cycle_quick_approve', id=cycle.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('Approvare il ciclo {{ cycle.code }}?')">
+                                        <button type="submit" class="btn btn-success" title="Approva Veloce">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin_bp.cycle_quick_reject', id=cycle.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('Rigettare il ciclo {{ cycle.code }}?')">
+                                        <button type="submit" class="btn btn-danger" title="Rigetta">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nessun Ciclo in Revisione</h5>
+                <p class="text-muted">
+                    {% if request.args.get('q') or request.args.get('status') %}
+                        Non sono stati trovati cicli con i filtri applicati.
+                    {% else %}
+                        Al momento non ci sono cicli che necessitano revisione amministrativa.
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('admin_bp.cycles_list') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-list"></i> Visualizza Tutti i Cicli
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Legend -->
+    {% if cycles %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Legenda Priorità</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <span class="badge bg-success me-2">✅ Normale</span>
+                            <small>Ciclo creato da meno di 3 giorni</small>
+                        </div>
+                        <div class="col-md-4">
+                            <span class="badge bg-warning me-2">⚡ Media</span>
+                            <small>Ciclo in attesa da 3-7 giorni</small>
+                        </div>
+                        <div class="col-md-4">
+                            <span class="badge bg-danger me-2">🔥 Alta</span>
+                            <small>Ciclo in attesa da più di 7 giorni</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh ogni 2 minuti per cicli pending
+    setTimeout(() => {
+        window.location.reload();
+    }, 120000);
+</script>
+{% endblock %}

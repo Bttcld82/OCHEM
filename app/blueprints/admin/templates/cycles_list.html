@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Cicli PT - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">🔄 Gestione Cicli PT</h1>
+            <p class="text-muted mb-0">Amministrazione completa cicli Proficiency Testing</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <a href="{{ url_for('admin_bp.parameters_list') }}" class="btn btn-info btn-sm">
+                <i class="fas fa-vial"></i> Parametri
+            </a>
+            <a href="{{ url_for('admin_bp.cycles_pending') }}" class="btn btn-warning btn-sm">
+                <i class="fas fa-clock"></i> In Revisione
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtri e Ricerca -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Ricerca per codice</label>
+                    <input type="text" name="q" class="form-control" value="{{ request.args.get('q', '') }}" 
+                           placeholder="es. PT2024-001...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Stato</label>
+                    <select name="status" class="form-select">
+                        <option value="">Tutti gli stati</option>
+                        <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Bozza</option>
+                        <option value="pending_review" {% if status_filter == 'pending_review' %}selected{% endif %}>In Revisione</option>
+                        <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Pubblicato</option>
+                        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rigettato</option>
+                        <option value="changes_requested" {% if status_filter == 'changes_requested' %}selected{% endif %}>Modifiche Richieste</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Provider</label>
+                    <select name="provider_id" class="form-select">
+                        <option value="">Tutti i provider</option>
+                        {% for provider in providers %}
+                        <option value="{{ provider.id }}" 
+                                {% if request.args.get('provider_id')|int == provider.id %}selected{% endif %}>
+                            {{ provider.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Filtra
+                    </button>
+                    <a href="{{ url_for('admin_bp.cycles_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiche Stato -->
+    <div class="row g-3 mb-4">
+        {% set total_cycles = cycles_data|length %}
+        {% set draft_count = cycles_data|selectattr('cycle.status', 'equalto', 'draft')|list|length %}
+        {% set pending_count = cycles_data|selectattr('cycle.status', 'equalto', 'pending_review')|list|length %}
+        {% set published_count = cycles_data|selectattr('cycle.status', 'equalto', 'published')|list|length %}
+        {% set rejected_count = cycles_data|selectattr('cycle.status', 'equalto', 'rejected')|list|length %}
+        
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-list fa-2x text-primary mb-2"></i>
+                    <h5>{{ total_cycles }}</h5>
+                    <small class="text-muted">Totali</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-edit fa-2x text-secondary mb-2"></i>
+                    <h5>{{ draft_count }}</h5>
+                    <small class="text-muted">Bozze</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                    <h5>{{ pending_count }}</h5>
+                    <small class="text-muted">In Revisione</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h5>{{ published_count }}</h5>
+                    <small class="text-muted">Pubblicati</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                    <h5>{{ rejected_count }}</h5>
+                    <small class="text-muted">Rigettati</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-edit fa-2x text-info mb-2"></i>
+                    <h5>{{ cycles_data|selectattr('cycle.status', 'equalto', 'changes_requested')|list|length }}</h5>
+                    <small class="text-muted">Modifiche</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabella Cicli -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-table"></i> 
+                Cicli Trovati: {{ cycles_data|length }}
+            </h6>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-tools"></i> Azioni
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="bulkAction('publish')">
+                        <i class="fas fa-check text-success"></i> Pubblica Selezionati
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="bulkAction('reject')">
+                        <i class="fas fa-times text-danger"></i> Rigetta Selezionati
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportCycles()">
+                        <i class="fas fa-download text-primary"></i> Esporta CSV
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if cycles_data %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            <th>Codice Ciclo</th>
+                            <th>Provider</th>
+                            <th>Data Creazione</th>
+                            <th>Parametri</th>
+                            <th>Stato</th>
+                            <th>Ultima Modifica</th>
+                            <th width="200">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cycle_data in cycles_data %}
+                        {% set cycle = cycle_data.cycle %}
+                        <tr class="{% if cycle.status == 'pending_review' %}table-warning{% elif cycle.status == 'published' %}table-success{% elif cycle.status == 'rejected' %}table-danger{% endif %}">
+                            <td>
+                                <input type="checkbox" class="form-check-input cycle-checkbox" 
+                                       value="{{ cycle.id }}" data-status="{{ cycle.status }}">
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ cycle.code }}</div>
+                                <small class="text-muted">ID: {{ cycle.id }}</small>
+                            </td>
+                            <td>
+                                <span class="text-muted">N/D</span>
+                            </td>
+                            <td>
+                                <div>{{ cycle.created_at.strftime('%d/%m/%Y') }}</div>
+                                <small class="text-muted">{{ cycle.created_at.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>
+                                {% set param_count = cycle_data.param_count %}
+                                {% if param_count > 0 %}
+                                    <span class="badge bg-primary">{{ param_count }} parametri</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Nessun parametro</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if cycle.status == 'draft' %}
+                                    <span class="badge bg-secondary">📝 Bozza</span>
+                                {% elif cycle.status == 'pending_review' %}
+                                    <span class="badge bg-warning">🕒 In Revisione</span>
+                                {% elif cycle.status == 'published' %}
+                                    <span class="badge bg-success">✅ Pubblicato</span>
+                                {% elif cycle.status == 'rejected' %}
+                                    <span class="badge bg-danger">❌ Rigettato</span>
+                                {% elif cycle.status == 'changes_requested' %}
+                                    <span class="badge bg-info">📝 Modifiche Richieste</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ cycle.updated_at.strftime('%d/%m/%Y') }}</div>
+                                <small class="text-muted">{{ cycle.updated_at.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    {% if cycle.status == 'pending_review' %}
+                                    <a href="{{ url_for('admin_bp.cycle_review', id=cycle.id) }}" 
+                                       class="btn btn-primary" title="Rivedi Ciclo">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% else %}
+                                    <a href="#" class="btn btn-outline-secondary" 
+                                       onclick="viewCycleDetails({{ cycle.id }})" title="Visualizza Dettagli">
+                                        <i class="fas fa-info-circle"></i>
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <!-- Cambio Stato Rapido -->
+                                    {% if cycle.status != 'published' %}
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-warning dropdown-toggle" 
+                                                data-bs-toggle="dropdown" title="Cambia Stato">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            {% if cycle.status != 'draft' %}
+                                            <li>
+                                                <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="new_status" value="draft">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-edit text-secondary"></i> Torna a Bozza
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                            {% if cycle.status != 'pending_review' %}
+                                            <li>
+                                                <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="new_status" value="pending_review">
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="fas fa-clock text-warning"></i> Invia in Revisione
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                            {% if cycle.status != 'published' %}
+                                            <li>
+                                                <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="new_status" value="published">
+                                                    <button type="submit" class="dropdown-item" 
+                                                            onclick="return confirm('Pubblicare il ciclo {{ cycle.code }}?')">
+                                                        <i class="fas fa-check text-success"></i> Pubblica
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="new_status" value="rejected">
+                                                    <button type="submit" class="dropdown-item text-danger" 
+                                                            onclick="return confirm('Rigettare il ciclo {{ cycle.code }}?')">
+                                                        <i class="fas fa-times"></i> Rigetta
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-recycle fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nessun Ciclo Trovato</h5>
+                <p class="text-muted">
+                    {% if request.args.get('q') or status_filter %}
+                        Non sono stati trovati cicli con i filtri applicati.
+                    {% else %}
+                        Non sono ancora stati creati cicli PT nel sistema.
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('admin_bp.dashboard') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Torna al Dashboard
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Legenda Stati -->
+    {% if cycles_data %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Legenda Stati Ciclo</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <span class="badge bg-secondary me-2">📝 Bozza</span>
+                            <small>Ciclo in preparazione</small>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-warning me-2">🕒 In Revisione</span>
+                            <small>In attesa di approvazione admin</small>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-success me-2">✅ Pubblicato</span>
+                            <small>Attivo per partecipazioni</small>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-danger me-2">❌ Rigettato</span>
+                            <small>Non approvato</small>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-info me-2">📝 Modifiche</span>
+                            <small>Richieste correzioni</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Select all checkbox
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.cycle-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+
+    // Bulk actions
+    function bulkAction(action) {
+        const selected = Array.from(document.querySelectorAll('.cycle-checkbox:checked'));
+        if (selected.length === 0) {
+            alert('Seleziona almeno un ciclo per continuare.');
+            return;
+        }
+
+        const ids = selected.map(cb => cb.value);
+        const actionText = action === 'publish' ? 'pubblicare' : 'rigettare';
+        
+        if (confirm(`Confermi di voler ${actionText} ${selected.length} cicli selezionati?`)) {
+            // Implementare chiamata AJAX per azione bulk
+            alert(`Funzione bulk ${action} in sviluppo`);
+        }
+    }
+
+    // Export cycles
+    function exportCycles() {
+        const filters = new URLSearchParams(window.location.search);
+        const exportUrl = '{{ url_for("admin_bp.cycles_list") }}?' + filters.toString() + '&export=csv';
+        window.open(exportUrl, '_blank');
+    }
+
+    // View cycle details
+    function viewCycleDetails(cycleId) {
+        // Implementare modal o redirect per dettagli
+        window.location.href = `{{ url_for('admin_bp.cycle_review', id=0) }}`.replace('0', cycleId);
+    }
+</script>
+{% endblock %}

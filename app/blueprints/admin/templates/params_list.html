@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Parametri - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">🧪 Gestione Parametri Analitici</h1>
+            <p class="text-muted mb-0">Configurazione parametri per i cicli PT</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <a href="{{ url_for('admin_bp.parameters_new') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nuovo Parametro
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtri e Ricerca -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Ricerca per nome o codice</label>
+                    <input type="text" name="q" class="form-control" value="{{ q or '' }}" 
+                           placeholder="es. Piombo, Pb, LEAD...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tecnica</label>
+                    <select name="technique_id" class="form-select">
+                        <option value="">Tutte le tecniche</option>
+                        {% for technique in techniques %}
+                        <option value="{{ technique.id }}" 
+                                {% if request.args.get('technique_id')|int == technique.id %}selected{% endif %}>
+                            {{ technique.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Filtra
+                    </button>
+                    <a href="{{ url_for('admin_bp.parameters_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiche Rapide -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-vial fa-2x text-primary mb-2"></i>
+                    <h5>{{ parameters|length }}</h5>
+                    <small class="text-muted">Parametri Totali</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-microscope fa-2x text-success mb-2"></i>
+                    <h5>{{ techniques|length }}</h5>
+                    <small class="text-muted">Tecniche Disponibili</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-ruler fa-2x text-info mb-2"></i>
+                    <h5>{{ units|length }}</h5>
+                    <small class="text-muted">Unità di Misura</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-2x text-warning mb-2"></i>
+                    <h5>{{ active_cycles }}</h5>
+                    <small class="text-muted">Cicli Attivi</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabella Parametri -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-table"></i> 
+                Parametri Trovati: {{ parameters|length }}
+            </h6>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-download"></i> Esporta
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-csv"></i> CSV</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel"></i> Excel</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if parameters %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Parametro</th>
+                            <th>Codice</th>
+                            <th>Unità</th>
+                            <th>Tecnica</th>
+                            <th>Matrice</th>
+                            <th>Uso nei Cicli</th>
+                            <th>Creato</th>
+                            <th width="120">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for param in parameters %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ param.name }}</div>
+                                {% if param.description %}
+                                <small class="text-muted">{{ param.description[:50] }}...</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if param.code %}
+                                    <code>{{ param.code }}</code>
+                                {% else %}
+                                    <span class="text-muted">N/C</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if param.unit_code %}
+                                    <span class="badge bg-secondary">{{ param.unit_code }}</span>
+                                {% else %}
+                                    <span class="text-muted">N/D</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if param.technique %}
+                                    <span class="badge bg-info">{{ param.technique.name }}</span>
+                                    {% if param.technique.code %}
+                                    <br><small class="text-muted">{{ param.technique.code }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">N/D</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if param.matrix %}
+                                    <span class="badge bg-success">{{ param.matrix }}</span>
+                                {% else %}
+                                    <span class="text-muted">N/S</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set cycle_usage = param.cycle_parameters|length %}
+                                {% if cycle_usage > 0 %}
+                                    <span class="badge bg-primary">{{ cycle_usage }} cicli</span>
+                                {% else %}
+                                    <span class="text-muted">Non utilizzato</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ param.created_at.strftime('%d/%m/%Y') }}</div>
+                                <small class="text-muted">{{ param.created_at.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_bp.parameters_edit', parameter_id=param.id) }}" 
+                                       class="btn btn-outline-primary" title="Modifica">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if param.cycle_parameters|length == 0 %}
+                                    <form method="POST" action="{{ url_for('admin_bp.parameters_delete', parameter_id=param.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('Eliminare il parametro {{ param.name }}?')">
+                                        <button type="submit" class="btn btn-outline-danger" title="Elimina">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <button class="btn btn-outline-secondary" disabled title="Utilizzato in {{ param.cycle_parameters|length }} cicli">
+                                        <i class="fas fa-lock"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-vial fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nessun Parametro Trovato</h5>
+                <p class="text-muted">
+                    {% if q %}
+                        Non sono stati trovati parametri con la ricerca "{{ q }}".
+                    {% else %}
+                        Non sono ancora stati configurati parametri analitici.
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('admin_bp.parameters_new') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Crea Primo Parametro
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Link Rapidi -->
+    {% if parameters %}
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-link"></i> Gestione Correlata</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin_bp.units_list') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-ruler"></i> Gestisci Unità di Misura
+                        </a>
+                        <a href="{{ url_for('admin_bp.techniques_list') }}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-microscope"></i> Gestisci Tecniche Analitiche
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Statistiche Utilizzo</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="paramUsageChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if parameters %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Grafico utilizzo parametri
+    const ctx = document.getElementById('paramUsageChart').getContext('2d');
+    const usageData = [
+        {% for param in parameters %}
+        {
+            label: '{{ param.name[:15] }}...',
+            usage: {{ param.cycle_parameters|length }}
+        },
+        {% endfor %}
+    ].sort((a, b) => b.usage - a.usage).slice(0, 10);
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: usageData.map(d => d.label),
+            datasets: [{
+                label: 'Utilizzo nei Cicli',
+                data: usageData.map(d => d.usage),
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
