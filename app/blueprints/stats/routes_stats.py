@@ -3,7 +3,7 @@ Routes per il modulo Statistics
 Gestisce download template, upload risultati, visualizzazione dati e grafici
 """
 
-from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for, Response, current_app
+from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for, Response, current_app, render_template_string
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import io
@@ -11,7 +11,7 @@ from datetime import datetime
 import pandas as pd
 
 from app import db
-from app.models import Lab, Cycle, Result, ZScore, PtStats, UploadFile
+from app.models import Lab, Cycle, Result, ZScore, PtStats, UploadFile, Technique, Parameter
 from app.blueprints.auth.decorators import lab_role_required
 from app.blueprints.stats.services_stats import process_results_csv, generate_template_csv, get_control_chart_data
 import plotly.graph_objects as go
@@ -352,6 +352,124 @@ def get_point_color(z_score):
         return 'orange'
     else:
         return 'green'
+
+@stats_bp.route("/update-dependent-filters", methods=['POST'])
+@login_required
+@lab_role_required("viewer")
+def update_dependent_filters(lab_code):
+    """Aggiorna tecniche e cicli basati sui parametri selezionati - HTMX"""
+    try:
+        from app.forms import ChartsForm
+        
+        # Ottieni parametri selezionati
+        selected_params = request.form.getlist('parameters')
+        
+        # Crea un nuovo form con le opzioni filtrate
+        form = ChartsForm(lab_code=lab_code)
+        
+        # Filtra tecniche basate sui parametri
+        if selected_params:
+            techs = db.session.query(Result.technique_code, Technique.name)\
+                .join(Technique, Result.technique_code == Technique.code, isouter=True)\
+                .filter(Result.lab_code == lab_code, 
+                        Result.technique_code.isnot(None),
+                        Result.parameter_code.in_(selected_params))\
+                .distinct().all()
+            
+            form.techniques.choices = [(t[0], f"{t[0]} - {t[1] or t[0]}") for t in techs]
+            
+            # Filtra cicli basati sui parametri
+            cycles = db.session.query(Result.cycle_code, Cycle.name)\
+                .join(Cycle, Result.cycle_code == Cycle.code)\
+                .filter(Result.lab_code == lab_code, 
+                        Result.parameter_code.in_(selected_params))\
+                .distinct().all()
+                
+            form.cycles.choices = [(c[0], f"{c[0]} - {c[1] or c[0]}") for c in cycles]
+        else:
+            form.techniques.choices = []
+            form.cycles.choices = []
+        
+        # Renderizza solo la parte dipendente
+        return render_template_string('''
+            <div class="row">
+                <!-- Tecniche -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        {{ form.techniques.label }}
+                        <small class="text-muted d-block">Dipende dai parametri</small>
+                    </label>
+                    {{ form.techniques(class="form-select", size="8", 
+                        **{"hx-post": url_for('stats_bp.update_cycles', lab_code=lab_code),
+                           "hx-target": "#cycles-select", 
+                           "hx-trigger": "change",
+                           "hx-include": "[name='parameters']"}) }}
+                    {% if form.techniques.choices|length == 0 %}
+                    <small class="text-info">Nessuna tecnica per i parametri selezionati</small>
+                    {% endif %}
+                </div>
+                
+                <!-- Cicli -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        {{ form.cycles.label }}
+                        <small class="text-muted d-block">Dipende da parametri/tecniche</small>
+                    </label>
+                    <div id="cycles-select">
+                        {{ form.cycles(class="form-select", size="8") }}
+                        {% if form.cycles.choices|length == 0 %}
+                        <small class="text-info">{{ form.techniques.choices|length }} tecniche disponibili</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        ''', form=form, lab_code=lab_code)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error updating dependent filters: {str(e)}")
+        return f"<div class='alert alert-danger'>Errore: {str(e)}</div>"
+
+@stats_bp.route("/update-cycles", methods=['POST'])
+@login_required
+@lab_role_required("viewer")
+def update_cycles(lab_code):
+    """Aggiorna solo i cicli basati su parametri e tecniche - HTMX"""
+    try:
+        from app.forms import ChartsForm
+        
+        selected_params = request.form.getlist('parameters')
+        selected_techs = request.form.getlist('techniques')
+        
+        form = ChartsForm(lab_code=lab_code)
+        
+        if selected_params:
+            # Query base filtrata per parametri
+            cycles_query = db.session.query(Result.cycle_code, Cycle.name)\
+                .join(Cycle, Result.cycle_code == Cycle.code)\
+                .filter(Result.lab_code == lab_code, 
+                        Result.parameter_code.in_(selected_params))
+            
+            # Filtra ulteriormente per tecniche se selezionate
+            if selected_techs:
+                cycles_query = cycles_query.filter(Result.technique_code.in_(selected_techs))
+            
+            cycles = cycles_query.distinct().all()
+            form.cycles.choices = [(c[0], f"{c[0]} - {c[1] or c[0]}") for c in cycles]
+        else:
+            form.cycles.choices = []
+        
+        return render_template_string('''
+            {{ form.cycles(class="form-select", size="8") }}
+            {% if form.cycles.choices|length == 0 %}
+            <small class="text-info">Nessun ciclo per la selezione corrente</small>
+            {% else %}
+            <small class="text-success">{{ form.cycles.choices|length }} cicli disponibili</small>
+            {% endif %}
+        ''', form=form)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error updating cycles: {str(e)}")
+        return f"<div class='text-danger'>Errore: {str(e)}</div>"
 
 
 def _save_results_to_db(df, lab_code, upload_file_id, cycle=None):

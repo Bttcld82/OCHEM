@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Grafici Dipendenti - {{ lab_code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-chart-line text-primary"></i>
+                Control Charts - {{ lab_code }}
+            </h1>
+            <p class="text-muted mb-0">Multi-select dipendenti - 100% Python</p>
+        </div>
+    </div>
+
+    <!-- Step 1: Selezione Parametri -->
+    <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0">
+                <span class="badge bg-light text-primary me-2">1</span>
+                Seleziona Parametri
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('stats_bp.step_parameters', lab_code=lab_code) }}">
+                <div class="row">
+                    <div class="col-md-8">
+                        <select name="parameters" multiple class="form-select" size="6" required>
+                            {% for code, name in available_parameters %}
+                            <option value="{{ code }}" {% if code in (selected_parameters or []) %}selected{% endif %}>
+                                {{ code }} - {{ name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Usa Ctrl+click per selezione multipla</small>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-arrow-right"></i> Carica Tecniche
+                        </button>
+                        {% if selected_parameters %}
+                        <p class="mt-2 text-success">
+                            <i class="fas fa-check"></i> {{ selected_parameters|length }} parametri selezionati
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Step 2: Selezione Tecniche (solo se parametri selezionati) -->
+    {% if selected_parameters and available_techniques %}
+    <div class="card mb-3">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0">
+                <span class="badge bg-light text-info me-2">2</span>
+                Seleziona Tecniche (opzionale)
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('stats_bp.step_techniques', lab_code=lab_code) }}">
+                <!-- Mantieni parametri selezionati -->
+                {% for param in selected_parameters %}
+                <input type="hidden" name="parameters" value="{{ param }}">
+                {% endfor %}
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <select name="techniques" multiple class="form-select" size="5">
+                            {% for code, name in available_techniques %}
+                            <option value="{{ code }}" {% if code in (selected_techniques or []) %}selected{% endif %}>
+                                {{ code }} - {{ name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Opzionale - lascia vuoto per tutte le tecniche</small>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-arrow-right"></i> Carica Cicli
+                        </button>
+                        <button type="submit" name="skip_techniques" value="1" class="btn btn-outline-info mt-2">
+                            <i class="fas fa-forward"></i> Salta Tecniche
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Step 3: Selezione Cicli (solo se parametri e opzionalmente tecniche selezionati) -->
+    {% if selected_parameters and available_cycles %}
+    <div class="card mb-3">
+        <div class="card-header bg-success text-white">
+            <h6 class="mb-0">
+                <span class="badge bg-light text-success me-2">3</span>
+                Seleziona Cicli (opzionale)
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('stats_bp.generate_chart', lab_code=lab_code) }}">
+                <!-- Mantieni selezioni precedenti -->
+                {% for param in selected_parameters %}
+                <input type="hidden" name="parameters" value="{{ param }}">
+                {% endfor %}
+                {% for tech in selected_techniques or [] %}
+                <input type="hidden" name="techniques" value="{{ tech }}">
+                {% endfor %}
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <select name="cycles" multiple class="form-select" size="5">
+                            {% for code, name in available_cycles %}
+                            <option value="{{ code }}" {% if code in (selected_cycles or []) %}selected{% endif %}>
+                                {{ code }} - {{ name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Periodo:</label>
+                        <select name="days" class="form-select mb-3">
+                            <option value="30" selected>30 giorni</option>
+                            <option value="60">60 giorni</option>
+                            <option value="90">90 giorni</option>
+                        </select>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-chart-line"></i> Genera Grafico
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Riepilogo Selezioni Correnti -->
+    {% if selected_parameters or selected_techniques or selected_cycles %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="fas fa-list"></i> Filtri Selezionati
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% if selected_parameters %}
+                <div class="col-md-4">
+                    <h6 class="text-primary">Parametri ({{ selected_parameters|length }}):</h6>
+                    {% for param in selected_parameters %}
+                    <span class="badge bg-primary me-1">{{ param }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if selected_techniques %}
+                <div class="col-md-4">
+                    <h6 class="text-info">Tecniche ({{ selected_techniques|length }}):</h6>
+                    {% for tech in selected_techniques %}
+                    <span class="badge bg-info me-1">{{ tech }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if selected_cycles %}
+                <div class="col-md-4">
+                    <h6 class="text-success">Cicli ({{ selected_cycles|length }}):</h6>
+                    {% for cycle in selected_cycles %}
+                    <span class="badge bg-success me-1">{{ cycle }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Grafico -->
+    {% if chart_html %}
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-area"></i>
+                Control Chart Generato
+            </h5>
+        </div>
+        <div class="card-body p-2">
+            {{ chart_html | safe }}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+console.log('Multi-select dipendenti - 100% Python puro!');
+</script>
+{% endblock %}

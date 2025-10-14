@@ -46,34 +46,48 @@
                             {{ form.parameters.label }}
                             <small class="text-muted d-block">Ctrl+click per selezione multipla</small>
                         </label>
-                        {{ form.parameters(class="form-select", size="8") }}
+                        {{ form.parameters(class="form-select", size="8", 
+                            **{"hx-post": url_for('stats_bp.update_dependent_filters', lab_code=lab_code),
+                               "hx-target": "#dependent-selects", 
+                               "hx-trigger": "change"}) }}
                         {% if form.parameters.choices|length == 0 %}
                         <small class="text-warning">Nessun parametro trovato nel database</small>
                         {% endif %}
                     </div>
                     
-                    <!-- Tecniche -->
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">
-                            {{ form.techniques.label }}
-                            <small class="text-muted d-block">Opzionale, filtra per tecnica</small>
-                        </label>
-                        {{ form.techniques(class="form-select", size="8") }}
-                        {% if form.techniques.choices|length == 0 %}
-                        <small class="text-info">Nessuna tecnica disponibile</small>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Cicli -->
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">
-                            {{ form.cycles.label }}
-                            <small class="text-muted d-block">Opzionale, filtra per ciclo</small>
-                        </label>
-                        {{ form.cycles(class="form-select", size="8") }}
-                        {% if form.cycles.choices|length == 0 %}
-                        <small class="text-info">Nessun ciclo disponibile</small>
-                        {% endif %}
+                    <!-- Container per select dipendenti -->
+                    <div id="dependent-selects" class="col-md-6">
+                        <div class="row">
+                            <!-- Tecniche -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">
+                                    {{ form.techniques.label }}
+                                    <small class="text-muted d-block">Dipende dai parametri</small>
+                                </label>
+                                {{ form.techniques(class="form-select", size="8", 
+                                    **{"hx-post": url_for('stats_bp.update_cycles', lab_code=lab_code),
+                                       "hx-target": "#cycles-select", 
+                                       "hx-trigger": "change",
+                                       "hx-include": "[name='parameters']"}) }}
+                                {% if form.techniques.choices|length == 0 %}
+                                <small class="text-info">Seleziona parametri prima</small>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Cicli -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">
+                                    {{ form.cycles.label }}
+                                    <small class="text-muted d-block">Dipende da parametri/tecniche</small>
+                                </label>
+                                <div id="cycles-select">
+                                    {{ form.cycles(class="form-select", size="8") }}
+                                    {% if form.cycles.choices|length == 0 %}
+                                    <small class="text-info">Seleziona parametri/tecniche prima</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Periodo e Submit -->
@@ -236,8 +250,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Nessun JavaScript necessario! -->
+<!-- HTMX per multi-select dipendenti -->
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
 <script>
-console.log('Template 100% Python caricato - nessun JavaScript complesso necessario!');
+console.log('Template con HTMX caricato per multi-select dipendenti');
 </script>
 {% endblock %}
