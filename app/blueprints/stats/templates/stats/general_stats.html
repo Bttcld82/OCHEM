@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiche Generali{% if is_single_lab %} - {{ current_lab.name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    {% if is_single_lab %}
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.lab_hub', lab_code=current_lab.code) }}">
+                            Hub {{ current_lab.code }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="breadcrumb-item active">
+                        Statistiche Generali
+                    </li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-chart-pie text-primary"></i>
+                Statistiche Generali
+                {% if is_single_lab %}
+                    - {{ current_lab.name }}
+                {% else %}
+                    - Tutti i Laboratori
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">
+                Panoramica completa delle performance e risultati
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if not is_single_lab %}
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-filter"></i> Filtra per Lab
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for stat in lab_stats %}
+                            <li><a class="dropdown-item" href="{{ url_for('stats_bp.general_stats_lab', lab_code=stat.lab.code) }}">
+                                {{ stat.lab.name }} ({{ stat.lab.code }})
+                            </a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-download"></i> Esporta
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="exportStatsToPDF()">
+                        <i class="fas fa-file-pdf"></i> Report PDF
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportStatsToCSV()">
+                        <i class="fas fa-file-csv"></i> Dati CSV
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiche Aggregate -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-building fa-2x mb-2"></i>
+                    <h3 class="mb-1">{{ aggregate_stats.total_labs }}</h3>
+                    <small>Laborator{{ 'i' if aggregate_stats.total_labs != 1 else 'io' }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-vial fa-2x mb-2"></i>
+                    <h3 class="mb-1">{{ aggregate_stats.total_results }}</h3>
+                    <small>Risultati Totali</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h3 class="mb-1">{{ "%.1f"|format(aggregate_stats.overall_performance) }}%</h3>
+                    <small>Performance Eccellente</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-trophy fa-2x mb-2"></i>
+                    <h3 class="mb-1">{{ aggregate_stats.total_excellent }}</h3>
+                    <small>Risultati Eccellenti</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grafico Performance Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i>
+                        Performance Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="performanceChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Distribuzione Performance
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="distributionChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabella Dettaglio Laboratori -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table"></i>
+                Dettaglio per Laboratorio
+            </h5>
+            <small class="text-muted">{{ lab_stats|length }} laborator{{ 'i' if lab_stats|length != 1 else 'io' }}</small>
+        </div>
+        <div class="card-body p-0">
+            {% if lab_stats %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Laboratorio</th>
+                                <th>Ruolo</th>
+                                <th>Risultati</th>
+                                <th>Z-Score Medio</th>
+                                <th>Eccellenti</th>
+                                <th>Accettabili</th>
+                                <th>Scarsi</th>
+                                <th>Performance %</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in lab_stats %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if stat.lab.is_active %}
+                                            <i class="fas fa-circle text-success me-2"></i>
+                                        {% else %}
+                                            <i class="fas fa-circle text-secondary me-2"></i>
+                                        {% endif %}
+                                        <div>
+                                            <div class="fw-bold">{{ stat.lab.name }}</div>
+                                            <small class="text-muted">{{ stat.lab.code }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if stat.role.name == 'owner_lab' %}
+                                        <span class="badge bg-danger">Owner</span>
+                                    {% elif stat.role.name == 'analyst' %}
+                                        <span class="badge bg-primary">Analyst</span>
+                                    {% elif stat.role.name == 'viewer' %}
+                                        <span class="badge bg-secondary">Viewer</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ stat.total_results }}</span>
+                                </td>
+                                <td>
+                                    {% if stat.mean_z_score != 0 %}
+                                        <span class="badge bg-{% if stat.mean_z_score|abs < 1 %}success{% elif stat.mean_z_score|abs < 2 %}warning{% else %}danger{% endif %}">
+                                            {{ "%.3f"|format(stat.mean_z_score) }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-success fw-bold">{{ stat.excellent }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-warning fw-bold">{{ stat.acceptable }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-danger fw-bold">{{ stat.poor }}</span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-{% if stat.performance_percent >= 80 %}success{% elif stat.performance_percent >= 60 %}warning{% else %}danger{% endif %}" 
+                                             style="width: {{ stat.performance_percent }}%">
+                                            {{ "%.1f"|format(stat.performance_percent) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('stats_bp.results_view', lab_code=stat.lab.code) }}" 
+                                           class="btn btn-outline-primary" title="Visualizza Risultati">
+                                            <i class="fas fa-table"></i>
+                                        </a>
+                                        <a href="{{ url_for('stats_bp.control_charts', lab_code=stat.lab.code) }}" 
+                                           class="btn btn-outline-info" title="Grafici di Controllo">
+                                            <i class="fas fa-chart-line"></i>
+                                        </a>
+                                        {% if stat.role.name in ['owner_lab', 'analyst'] %}
+                                            <a href="{{ url_for('stats_bp.upload_results', lab_code=stat.lab.code) }}" 
+                                               class="btn btn-outline-success" title="Carica Risultati">
+                                                <i class="fas fa-upload"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessuna Statistica Disponibile</h5>
+                    <p class="text-muted">
+                        Non sono presenti dati statistici per i tuoi laboratori.<br>
+                        Carica alcuni risultati per iniziare l'analisi.
+                    </p>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i>
+                        Torna alla Dashboard
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Insights e Raccomandazioni -->
+    {% if aggregate_stats.total_results > 0 %}
+    <div class="card mt-4">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0">
+                <i class="fas fa-lightbulb"></i>
+                Insights e Raccomandazioni
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>📊 Performance Analysis</h6>
+                    <ul class="list-unstyled">
+                        {% if aggregate_stats.overall_performance >= 80 %}
+                            <li><i class="fas fa-check-circle text-success"></i> Ottima performance complessiva ({{ "%.1f"|format(aggregate_stats.overall_performance) }}%)</li>
+                        {% elif aggregate_stats.overall_performance >= 60 %}
+                            <li><i class="fas fa-exclamation-triangle text-warning"></i> Performance accettabile ({{ "%.1f"|format(aggregate_stats.overall_performance) }}%), possibili miglioramenti</li>
+                        {% else %}
+                            <li><i class="fas fa-times-circle text-danger"></i> Performance da migliorare ({{ "%.1f"|format(aggregate_stats.overall_performance) }}%), rivedere processi analitici</li>
+                        {% endif %}
+                        
+                        {% if aggregate_stats.total_poor > 0 %}
+                            <li><i class="fas fa-flag text-danger"></i> {{ aggregate_stats.total_poor }} risultati con performance scarsa richiedono attenzione</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>🎯 Azioni Suggerite</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-arrow-right text-primary"></i> Analizza i parametri con z-score elevato</li>
+                        <li><i class="fas fa-arrow-right text-primary"></i> Verifica calibrazione strumenti per outlier</li>
+                        <li><i class="fas fa-arrow-right text-primary"></i> Considera training del personale se necessario</li>
+                        <li><i class="fas fa-arrow-right text-primary"></i> Monitora trend temporali per detect derive</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js per i grafici -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if lab_stats %}
+        createPerformanceChart();
+        createDistributionChart();
+    {% endif %}
+});
+
+function createPerformanceChart() {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    const labNames = {{ lab_stats|map(attribute='lab.code')|list|tojson }};
+    const performanceData = {{ lab_stats|map(attribute='performance_percent')|list|tojson }};
+    const excellent = {{ lab_stats|map(attribute='excellent')|list|tojson }};
+    const acceptable = {{ lab_stats|map(attribute='acceptable')|list|tojson }};
+    const poor = {{ lab_stats|map(attribute='poor')|list|tojson }};
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labNames,
+            datasets: [{
+                label: 'Eccellenti',
+                data: excellent,
+                backgroundColor: '#198754'
+            }, {
+                label: 'Accettabili',
+                data: acceptable,
+                backgroundColor: '#ffc107'
+            }, {
+                label: 'Scarsi',
+                data: poor,
+                backgroundColor: '#dc3545'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            },
+            plugins: {
+                legend: { position: 'top' },
+                title: {
+                    display: true,
+                    text: 'Distribuzione Performance per Laboratorio'
+                }
+            }
+        }
+    });
+}
+
+function createDistributionChart() {
+    const ctx = document.getElementById('distributionChart').getContext('2d');
+    const totalExcellent = {{ aggregate_stats.total_excellent }};
+    const totalAcceptable = {{ aggregate_stats.total_acceptable }};
+    const totalPoor = {{ aggregate_stats.total_poor }};
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Eccellenti', 'Accettabili', 'Scarsi'],
+            datasets: [{
+                data: [totalExcellent, totalAcceptable, totalPoor],
+                backgroundColor: ['#198754', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                title: {
+                    display: true,
+                    text: 'Distribuzione Complessiva'
+                }
+            }
+        }
+    });
+}
+
+function exportStatsToPDF() {
+    // TODO: Implementare export PDF
+    alert('Export PDF - Funzionalità in sviluppo');
+}
+
+function exportStatsToCSV() {
+    // TODO: Implementare export CSV
+    alert('Export CSV - Funzionalità in sviluppo');
+}
+</script>
+{% endblock %}

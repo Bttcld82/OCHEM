@@ -1,0 +1,935 @@
+{% extends "base.html" %}
+
+{% block title %}Grafici di Controllo - {{ lab_code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.lab_hub', lab_code=lab_code) }}">
+                            Hub {{ lab_code }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        Grafici di Controllo
+                    </li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-chart-line text-primary"></i>
+                Grafici di Controllo Z-Score
+            </h1>
+            <p class="text-muted mb-0">
+                Lab {{ lab_code }} - Monitoraggio performance nel tempo
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('stats_bp.results_view', lab_code=lab_code) }}" 
+               class="btn btn-outline-info">
+                <i class="fas fa-table"></i> Visualizza Risultati
+            </a>
+            <a href="{{ url_for('stats_bp.upload_results', lab_code=lab_code) }}" 
+               class="btn btn-success">
+                <i class="fas fa-upload"></i> Carica Risultati
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtri -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="fas fa-filter"></i>
+                Filtri Grafico
+            </h6>
+        </div>
+        <div class="card-body">
+            <form id="filter-form" method="POST">
+                {{ form.hidden_tag() }}
+                <div class="row g-3">
+                    <!-- Multi-Select Parametri -->
+                    <div class="col-lg-3">
+                        <label class="form-label">
+                            <i class="fas fa-flask"></i> Parametri
+                            <small class="text-muted">(Ctrl+click per multipli)</small>
+                        </label>
+                        <select id="parameters" name="parameters" multiple class="form-select" size="6" onchange="updateDependentFilters()">
+                            <!-- Caricati via JavaScript -->
+                        </select>
+                        <div class="mt-1">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAll('parameters')">
+                                <i class="fas fa-check-double"></i> Tutti
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAll('parameters')">
+                                <i class="fas fa-times"></i> Nessuno
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Multi-Select Tecniche -->
+                    <div class="col-lg-3">
+                        <label class="form-label">
+                            <i class="fas fa-microscope"></i> Tecniche
+                            <small class="text-muted">(Dipende da parametri)</small>
+                        </label>
+                        <select id="techniques" name="techniques" multiple class="form-select" size="6" onchange="updateDependentFilters()">
+                            <option disabled>Seleziona prima i parametri</option>
+                        </select>
+                        <div class="mt-1">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAll('techniques')">
+                                <i class="fas fa-check-double"></i> Tutte
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAll('techniques')">
+                                <i class="fas fa-times"></i> Nessuna
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Multi-Select Cicli -->
+                    <div class="col-lg-3">
+                        <label class="form-label">
+                            <i class="fas fa-sync"></i> Cicli PT
+                            <small class="text-muted">(Dipende da selezioni)</small>
+                        </label>
+                        <select id="cycles" name="cycles" multiple class="form-select" size="6">
+                            <option disabled>Seleziona parametri/tecniche</option>
+                        </select>
+                        <div class="mt-1">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAll('cycles')">
+                                <i class="fas fa-check-double"></i> Tutti
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAll('cycles')">
+                                <i class="fas fa-times"></i> Nessuno
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Periodo e Azioni -->
+                    <div class="col-lg-3">
+                        <label class="form-label">
+                            <i class="fas fa-calendar"></i> {{ form.days.label.text }}
+                        </label>
+                        {{ form.days(class="form-select", id="days") }}
+                        
+                        <!-- Statistiche Filtri -->
+                        <div id="filter-stats" class="mt-2">
+                            <small class="text-muted">
+                                <div>🔬 <span id="params-count">0</span> parametri</div>
+                                <div>⚗️ <span id="techniques-count">0</span> tecniche</div>
+                                <div>🔄 <span id="cycles-count">0</span> cicli</div>
+                            </small>
+                        </div>
+                        
+                        <!-- Pulsanti Azione -->
+                        <div class="d-grid gap-2 mt-3">
+                            {{ form.submit(class="btn btn-success", id="update-btn") }}
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="resetAllFilters()">
+                                <i class="fas fa-undo"></i> Reset Filtri
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Grafico Principale -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-line"></i>
+                Control Chart Z-Score
+                {% if selected_parameter %}
+                    - {{ selected_parameter }}
+                {% endif %}
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-light btn-sm" onclick="downloadChart()">
+                    <i class="fas fa-download"></i> Scarica PNG
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="toggleFullscreen()">
+                    <i class="fas fa-expand"></i> Fullscreen
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if chart_data.x %}
+                <div id="control-chart" style="height: 600px;"></div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessun Dato Disponibile</h5>
+                    <p class="text-muted">
+                        Non sono presenti dati per generare il grafico di controllo.<br>
+                        {% if selected_parameter %}
+                            Prova a cambiare il parametro selezionato o il periodo.
+                        {% else %}
+                            Carica alcuni risultati per visualizzare i grafici.
+                        {% endif %}
+                    </p>
+                    <a href="{{ url_for('stats_bp.upload_results', lab_code=lab_code) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-upload"></i>
+                        Carica Risultati
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistiche Rapide del Grafico -->
+    {% if chart_data.x %}
+    <div class="row g-3">
+        <div class="col-md-8">
+            <div class="card stats-card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calculator"></i>
+                        Statistiche Periodo Visualizzato
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 text-center">
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h5 class="text-primary mb-1" id="stats-total">{{ chart_data.y|length }}</h5>
+                                <small class="text-muted">Punti Totali</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h5 class="text-success mb-1" id="stats-excellent">
+                                    {% set excellent = chart_data.colors.count('green') %}
+                                    {{ excellent }}
+                                </h5>
+                                <small class="text-muted">Eccellenti</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h5 class="text-warning mb-1" id="stats-acceptable">
+                                    {% set acceptable = chart_data.colors.count('orange') %}
+                                    {{ acceptable }}
+                                </h5>
+                                <small class="text-muted">Accettabili</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <h5 class="text-danger mb-1" id="stats-poor">
+                                    {% set poor = chart_data.colors.count('red') %}
+                                    {{ poor }}
+                                </h5>
+                                <small class="text-muted">Scarsi</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Interpretazione
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <span class="badge bg-success me-2"></span>
+                            <small><strong>Verde:</strong> |z| < 2 (Eccellente)</small>
+                        </li>
+                        <li class="mb-2">
+                            <span class="badge bg-warning me-2"></span>
+                            <small><strong>Arancione:</strong> 2 ≤ |z| < 3 (Accettabile)</small>
+                        </li>
+                        <li class="mb-2">
+                            <span class="badge bg-danger me-2"></span>
+                            <small><strong>Rosso:</strong> |z| ≥ 3 (Scarso)</small>
+                        </li>
+                    </ul>
+                    <hr class="my-2">
+                    <small class="text-muted">
+                        Le linee tratteggiate indicano i limiti di controllo a ±3σ.
+                        La linea centrale (verde) rappresenta il target (z=0).
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabella Dati del Grafico -->
+    {% if chart_data and chart_data.x and chart_data.x|length > 0 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Dati del Grafico
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Data/Ora</th>
+                                    <th>Z-Score</th>
+                                    <th>Performance</th>
+                                    <th>Stato</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(chart_data.x|length) %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ chart_data.x[i] }}</td>
+                                    <td class="text-end">
+                                        {% set z_val = chart_data.y[i] %}
+                                        <span class="badge {% if z_val|abs < 2 %}bg-success{% elif z_val|abs < 3 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "%.3f"|format(z_val) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% set abs_z = chart_data.y[i]|abs %}
+                                        {% if abs_z < 2 %}
+                                            <i class="fas fa-check-circle text-success"></i> Eccellente
+                                        {% elif abs_z < 3 %}
+                                            <i class="fas fa-exclamation-triangle text-warning"></i> Accettabile
+                                        {% else %}
+                                            <i class="fas fa-times-circle text-danger"></i> Scarso
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if chart_data.y[i]|abs >= 3 %}
+                                            <span class="badge bg-danger">Fuori Controllo</span>
+                                        {% elif chart_data.y[i]|abs >= 2 %}
+                                            <span class="badge bg-warning">Warning</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Sotto Controllo</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Riepilogo -->
+                    <div class="row mt-3">
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-2">
+                                <h6 class="text-success">{{ chart_data.y|selectattr('abs', 'lt', 2)|list|length }}</h6>
+                                <small>Eccellenti</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-2">
+                                <h6 class="text-warning">
+                                    {{ chart_data.y|select('abs')|select('>=', 2)|select('<', 3)|list|length }}
+                                </h6>
+                                <small>Accettabili</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-2">
+                                <h6 class="text-danger">{{ chart_data.y|selectattr('abs', 'ge', 3)|list|length }}</h6>
+                                <small>Scarsi</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-2">
+                                <h6 class="text-primary">{{ chart_data.y|length }}</h6>
+                                <small>Totali</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabella Risultati Filtrati -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table"></i>
+                        Risultati Filtrati
+                        <span class="badge bg-primary ms-2" id="table-count-badge">0</span>
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportTableData('csv')">
+                            <i class="fas fa-file-csv"></i> CSV
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportTableData('excel')">
+                            <i class="fas fa-file-excel"></i> Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Loading spinner -->
+                    <div id="table-loading" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Caricamento...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Caricamento dati...</p>
+                    </div>
+                    
+                    <!-- Tabella risultati -->
+                    <div class="table-responsive" id="results-table-container" style="max-height: 500px;">
+                        <table class="table table-sm table-hover mb-0" id="results-table">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th width="8%">Data</th>
+                                    <th width="12%">Parametro</th>
+                                    <th width="12%">Tecnica</th>
+                                    <th width="12%">Ciclo</th>
+                                    <th width="15%">Provider</th>
+                                    <th width="10%" class="text-end">Valore</th>
+                                    <th width="8%" class="text-end">Incertezza</th>
+                                    <th width="8%" class="text-end">Z-Score</th>
+                                    <th width="10%">Performance</th>
+                                    <th width="5%">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-table-body">
+                                <!-- I dati verranno caricati dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Messaggio nessun dato -->
+                    <div id="no-data-message" class="text-center py-5 d-none">
+                        <i class="fas fa-table fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nessun Risultato</h5>
+                        <p class="text-muted">Non sono presenti risultati per i filtri selezionati.</p>
+                    </div>
+                    
+                    <!-- Paginazione -->
+                    <div class="d-flex justify-content-between align-items-center p-3 border-top" id="pagination-container">
+                        <small class="text-muted" id="pagination-info">
+                            <!-- Info paginazione -->
+                        </small>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0" id="pagination-controls">
+                                <!-- Controlli paginazione -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Plotly.js CDN -->
+<script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Inizializzazione grafico Plotly...');
+    createChart();
+});
+
+function createChart() {
+    const chartDiv = document.getElementById('control-chart');
+    
+    if (!chartDiv) {
+        console.log('Elemento control-chart non trovato');
+        return;
+    }
+    
+    // Controlla se abbiamo dati dal server
+    {% if chart_data and chart_data.x and chart_data.x|length > 0 %}
+        console.log('Creazione grafico con dati reali...');
+        // Dati dal server
+        const chartData = {
+            x: {{ chart_data.x | tojson }},
+            y: {{ chart_data.y | tojson }},
+            colors: {{ chart_data.colors | tojson }},
+            parameter_name: '{{ chart_data.parameter_name | default("Multi Parameters") }}'
+        };
+        
+        createControlChart(chartData);
+    {% else %}
+        console.log('Creazione grafico demo...');
+        createDemoChart();
+    {% endif %}
+}
+
+function createControlChart(data) {
+    const chartDiv = document.getElementById('control-chart');
+    
+    // Trace principale dei dati
+    const dataTrace = {
+        x: data.x,
+        y: data.y,
+        type: 'scatter',
+        mode: 'markers+lines',
+        name: 'Z-Score',
+        marker: {
+            color: data.colors,
+            size: 8,
+            line: { color: 'white', width: 1 }
+        },
+        line: { color: 'blue', width: 2 }
+    };
+    
+    // Linee di controllo
+    const xRange = [data.x[0], data.x[data.x.length - 1]];
+    
+    const upperLimit = {
+        x: xRange,
+        y: [3, 3],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'UCL (+3σ)',
+        line: { color: 'red', dash: 'dash', width: 2 }
+    };
+    
+    const lowerLimit = {
+        x: xRange,
+        y: [-3, -3],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'LCL (-3σ)',
+        line: { color: 'red', dash: 'dash', width: 2 }
+    };
+    
+    const upperWarning = {
+        x: xRange,
+        y: [2, 2],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'UWL (+2σ)',
+        line: { color: 'orange', dash: 'dot', width: 1 }
+    };
+    
+    const lowerWarning = {
+        x: xRange,
+        y: [-2, -2],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'LWL (-2σ)',
+        line: { color: 'orange', dash: 'dot', width: 1 }
+    };
+    
+    const centerLine = {
+        x: xRange,
+        y: [0, 0],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'CL (0σ)',
+        line: { color: 'green', width: 2 }
+    };
+    
+    const layout = {
+        title: {
+            text: 'Control Chart Z-Score - ' + data.parameter_name,
+            font: { size: 16 }
+        },
+        xaxis: {
+            title: 'Data/Ora',
+            type: 'date'
+        },
+        yaxis: {
+            title: 'Z-Score',
+            range: [-4, 4]
+        },
+        showlegend: true,
+        height: 500,
+        margin: { t: 60, r: 40, b: 60, l: 60 }
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false
+    };
+    
+    Plotly.newPlot(chartDiv, [dataTrace, centerLine, upperWarning, lowerWarning, upperLimit, lowerLimit], layout, config);
+}
+
+function createDemoChart() {
+    const chartDiv = document.getElementById('control-chart');
+    
+    // Dati demo
+    const demoData = {
+        x: ['2025-01-10', '2025-01-11', '2025-01-12', '2025-01-13', '2025-01-14', '2025-01-15', '2025-01-16'],
+        y: [0.5, -1.2, 2.3, -0.8, 1.1, -2.5, 0.3],
+        colors: ['blue', 'blue', 'orange', 'blue', 'blue', 'orange', 'blue']
+    };
+    
+    const dataTrace = {
+        x: demoData.x,
+        y: demoData.y,
+        type: 'scatter',
+        mode: 'markers+lines',
+        name: 'Z-Score Demo',
+        marker: {
+            color: demoData.colors,
+            size: 10
+        },
+        line: { color: 'blue', width: 2 }
+    };
+    
+    // Linee di controllo
+    const xRange = [demoData.x[0], demoData.x[demoData.x.length - 1]];
+    
+    const upperLimit = {
+        x: xRange,
+        y: [3, 3],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'UCL (+3σ)',
+        line: { color: 'red', dash: 'dash', width: 2 }
+    };
+    
+    const lowerLimit = {
+        x: xRange,
+        y: [-3, -3],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'LCL (-3σ)',
+        line: { color: 'red', dash: 'dash', width: 2 }
+    };
+    
+    const centerLine = {
+        x: xRange,
+        y: [0, 0],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'CL (0σ)',
+        line: { color: 'green', width: 2 }
+    };
+    
+    const layout = {
+        title: {
+            text: 'Control Chart Demo - Dati di Esempio',
+            font: { size: 16 }
+        },
+        xaxis: {
+            title: 'Data/Ora',
+            type: 'date'
+        },
+        yaxis: {
+            title: 'Z-Score',
+            range: [-4, 4]
+        },
+        showlegend: true,
+        height: 500,
+        margin: { t: 60, r: 40, b: 60, l: 60 }
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false
+    };
+    
+    Plotly.newPlot(chartDiv, [dataTrace, centerLine, upperLimit, lowerLimit], layout, config);
+}
+
+function downloadChart() {
+    Plotly.downloadImage('control-chart', {
+        format: 'png',
+        width: 1200,
+        height: 600,
+        filename: 'control_chart_{{ lab_code }}'
+    });
+}
+
+function toggleFullscreen() {
+    const chartDiv = document.getElementById('control-chart');
+    if (!document.fullscreenElement) {
+        chartDiv.requestFullscreen().then(() => {
+            setTimeout(() => Plotly.Plots.resize('control-chart'), 100);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// ===== GESTIONE MULTI-SELECT FILTRI =====
+
+// Carica i parametri dal database via API
+function loadAvailableParameters() {
+    console.log('Caricamento parametri dal database...');
+    
+    // Usa l'API reale per caricare i dati dal DB
+    const url = `/l/{{ lab_code }}/stats/api/filter-options`;
+    
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Dati ricevuti dall\'API:', data);
+            
+            if (data.success && data.options) {
+                // Popola i parametri
+                if (data.options.parameters) {
+                    populateSelect('parameters', data.options.parameters, 'name', 'code');
+                    console.log('Parametri dal DB caricati:', data.options.parameters.length);
+                    
+                    // Ripristina le selezioni dal backend (se presenti)
+                    restoreSelections();
+                } else {
+                    console.warn('Nessun parametro trovato nel DB');
+                }
+            } else {
+                throw new Error('Struttura risposta API non valida');
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento parametri:', error);
+            // Fallback: mostra messaggio di errore
+            showNoDataMessage('parameters', 'Errore caricamento parametri dal DB');
+        });
+}
+
+// Ripristina le selezioni dopo il caricamento (per evitare deselezione su submit)
+function restoreSelections() {
+    // Valori selezionati passati dal backend Jinja2
+    const selectedParams = {{ selected_parameters | tojson }};
+    const selectedTechs = {{ selected_techniques | tojson }};  
+    const selectedCycles = {{ selected_cycles | tojson }};
+    
+    console.log('Ripristino selezioni:', {
+        params: selectedParams,
+        techs: selectedTechs, 
+        cycles: selectedCycles
+    });
+    
+    // Ripristina parametri selezionati
+    if (selectedParams && selectedParams.length > 0) {
+        setSelectedValues('parameters', selectedParams);
+        // Carica le tecniche dipendenti
+        updateDependentFilters();
+    }
+    
+    // Dopo un piccolo delay, ripristina tecniche e cicli
+    setTimeout(() => {
+        if (selectedTechs && selectedTechs.length > 0) {
+            setSelectedValues('techniques', selectedTechs);
+            updateCycles();
+        }
+        
+        setTimeout(() => {
+            if (selectedCycles && selectedCycles.length > 0) {
+                setSelectedValues('cycles', selectedCycles);
+            }
+        }, 100);
+    }, 200);
+}
+
+// Aggiorna le tecniche quando cambiano i parametri (usa API reale)
+function updateDependentFilters() {
+    const selectedParams = getSelectedValues('parameters');
+    console.log('Parametri selezionati:', selectedParams);
+    
+    if (selectedParams.length === 0) {
+        clearSelect('techniques');
+        clearSelect('cycles');
+        return;
+    }
+    
+    // Chiama API con parametri selezionati per ottenere tecniche filtrate
+    const url = `/l/{{ lab_code }}/stats/api/filter-options?` + 
+               selectedParams.map(p => `parameters[]=${encodeURIComponent(p)}`).join('&');
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Tecniche ricevute dall\'API:', data);
+            
+            if (data.success && data.options && data.options.techniques) {
+                populateSelect('techniques', data.options.techniques, 'name', 'code');
+                console.log('Tecniche dal DB caricate:', data.options.techniques.length);
+            } else {
+                console.warn('Nessuna tecnica trovata per i parametri selezionati');
+                showNoDataMessage('techniques', 'Nessuna tecnica disponibile');
+            }
+            
+            clearSelect('cycles');
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento tecniche:', error);
+            showNoDataMessage('techniques', 'Errore caricamento tecniche');
+        });
+}
+
+// Aggiorna i cicli quando cambiano tecniche (usa API reale)
+function updateCycles() {
+    const selectedParams = getSelectedValues('parameters');
+    const selectedTechs = getSelectedValues('techniques');
+    
+    console.log('Aggiornamento cicli - Params:', selectedParams.length, 'Techs:', selectedTechs.length);
+    
+    if (selectedParams.length === 0) {
+        clearSelect('cycles');
+        return;
+    }
+    
+    // Costruisci URL con parametri e tecniche selezionati
+    let url = `/l/{{ lab_code }}/stats/api/filter-options?` + 
+              selectedParams.map(p => `parameters[]=${encodeURIComponent(p)}`).join('&');
+    
+    if (selectedTechs.length > 0) {
+        url += '&' + selectedTechs.map(t => `techniques[]=${encodeURIComponent(t)}`).join('&');
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Cicli ricevuti dall\'API:', data);
+            
+            if (data.success && data.options && data.options.cycles) {
+                populateSelect('cycles', data.options.cycles, 'name', 'code');
+                console.log('Cicli dal DB caricati:', data.options.cycles.length);
+            } else {
+                console.warn('Nessun ciclo trovato per le selezioni correnti');
+                showNoDataMessage('cycles', 'Nessun ciclo disponibile');
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento cicli:', error);
+            showNoDataMessage('cycles', 'Errore caricamento cicli');
+        });
+}
+
+// Utility functions per i filtri
+function getSelectedValues(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) {
+        console.warn(`Elemento '${selectId}' non trovato`);
+        return [];
+    }
+    return Array.from(select.selectedOptions).map(option => option.value);
+}
+
+function populateSelect(selectId, items, textField, valueField) {
+    const select = document.getElementById(selectId);
+    if (!select) {
+        console.warn(`Elemento '${selectId}' non trovato`);
+        return;
+    }
+    
+    console.log(`Popolamento '${selectId}' con ${items.length} elementi`);
+    select.innerHTML = '';
+    
+    items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[valueField];
+        option.textContent = item[textField];
+        select.appendChild(option);
+    });
+}
+
+function clearSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (select) {
+        select.innerHTML = '';
+        console.log(`Select '${selectId}' svuotato`);
+    }
+}
+
+// Imposta valori selezionati in una multi-select
+function setSelectedValues(selectId, values) {
+    const select = document.getElementById(selectId);
+    if (!select || !values || values.length === 0) return;
+    
+    console.log(`Impostazione valori selezionati per '${selectId}':`, values);
+    
+    for (let option of select.options) {
+        option.selected = values.includes(option.value);
+    }
+}
+
+// Mostra messaggio quando non ci sono dati
+function showNoDataMessage(selectId, message) {
+    const select = document.getElementById(selectId);
+    if (select) {
+        select.innerHTML = `<option disabled>${message}</option>`;
+    }
+}
+
+// Funzioni per i pulsanti "Tutti" e "Nessuno"
+function selectAll(selectId) {
+    const select = document.getElementById(selectId);
+    if (select) {
+        for (let option of select.options) {
+            option.selected = true;
+        }
+        console.log(`Selezionati tutti gli elementi in '${selectId}'`);
+        
+        // Triggera gli eventi di change
+        if (selectId === 'parameters') {
+            updateDependentFilters();
+        } else if (selectId === 'techniques') {
+            updateCycles();
+        }
+    }
+}
+
+function clearAll(selectId) {
+    const select = document.getElementById(selectId);
+    if (select) {
+        for (let option of select.options) {
+            option.selected = false;
+        }
+        console.log(`Deselezionati tutti gli elementi in '${selectId}'`);
+        
+        // Triggera gli eventi di change
+        if (selectId === 'parameters') {
+            updateDependentFilters();
+        } else if (selectId === 'techniques') {
+            updateCycles();
+        }
+    }
+}
+
+function resetAllFilters() {
+    console.log('Reset di tutti i filtri...');
+    clearSelect('parameters');
+    clearSelect('techniques');
+    clearSelect('cycles');
+    
+    // Ricarica i parametri iniziali
+    setTimeout(() => {
+        loadAvailableParameters();
+    }, 100);
+}
+
+// Inizializza i filtri al caricamento
+document.addEventListener('DOMContentLoaded', function() {
+    // Carica i parametri dopo un breve delay per assicurarsi che il DOM sia pronto
+    setTimeout(() => {
+        loadAvailableParameters();
+    }, 500);
+});
+</script>
+{% endblock %}

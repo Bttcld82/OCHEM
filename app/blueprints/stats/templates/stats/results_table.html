@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Risultati PT - {{ lab_code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.lab_hub', lab_code=lab_code) }}">
+                            Hub {{ lab_code }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        Risultati
+                    </li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-table text-primary"></i>
+                Risultati Prove Interlaboratorio
+            </h1>
+            <p class="text-muted mb-0">
+                Lab {{ lab_code }} - Ultimi risultati con z-scores calcolati
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('stats_bp.upload_results', lab_code=lab_code) }}" 
+               class="btn btn-success">
+                <i class="fas fa-upload"></i> Carica Nuovi Risultati
+            </a>
+            <a href="{{ url_for('stats_bp.control_charts', lab_code=lab_code) }}" 
+               class="btn btn-info">
+                <i class="fas fa-chart-line"></i> Grafici di Controllo
+            </a>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-download"></i> Export
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="exportToCSV()">
+                        <i class="fas fa-file-csv"></i> Export CSV
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportToPDF()">
+                        <i class="fas fa-file-pdf"></i> Export PDF
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiche Riassuntive -->
+    {% if summary %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white text-center">
+                <div class="card-body">
+                    <i class="fas fa-vial fa-2x mb-2"></i>
+                    <h4 class="mb-1">{{ summary.total_results }}</h4>
+                    <small>Risultati Totali</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white text-center">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h4 class="mb-1">{{ summary.excellent_count }}</h4>
+                    <small>Performance Eccellente (|z| < 2)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white text-center">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <h4 class="mb-1">{{ summary.acceptable_count }}</h4>
+                    <small>Performance Accettabile (2 ≤ |z| < 3)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white text-center">
+                <div class="card-body">
+                    <i class="fas fa-times-circle fa-2x mb-2"></i>
+                    <h4 class="mb-1">{{ summary.poor_count }}</h4>
+                    <small>Performance Scarsa (|z| ≥ 3)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="alert alert-info">
+                <strong>Z-Score Medio:</strong> {{ "%.3f"|format(summary.mean_z) }}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="alert alert-{% if summary.max_abs_z < 2 %}success{% elif summary.max_abs_z < 3 %}warning{% else %}danger{% endif %}">
+                <strong>Z-Score Massimo (assoluto):</strong> {{ "%.3f"|format(summary.max_abs_z) }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabella Risultati -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-list"></i>
+                Dettaglio Risultati
+            </h5>
+            <div class="d-flex gap-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="showAllColumns">
+                    <label class="form-check-label" for="showAllColumns">
+                        Mostra tutte le colonne
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body p-0">
+            {% if results %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="resultsTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Parametro</th>
+                                <th>Valore Risultato</th>
+                                <th>Z-Score</th>
+                                <th>SZ²</th>
+                                <th class="extra-col" style="display: none;">RSZ</th>
+                                <th class="extra-col" style="display: none;">Tecnica</th>
+                                <th class="extra-col" style="display: none;">Unità</th>
+                                <th>Data Analisi</th>
+                                <th>Performance</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                            <tr class="result-row" data-z-score="{{ result.z_score or 0 }}">
+                                <td>
+                                    <span class="fw-bold text-primary">{{ result.parameter_code }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ "%.4f"|format(result.result_value) }}</span>
+                                </td>
+                                <td>
+                                    {% if result.z_score is not none %}
+                                        <span class="badge bg-{{ result.performance_class }} fs-6">
+                                            {{ "%.3f"|format(result.z_score) }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if result.sz2 is not none %}
+                                        {{ "%.3f"|format(result.sz2) }}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td class="extra-col" style="display: none;">
+                                    {% if result.rsz is not none %}
+                                        {{ "%.3f"|format(result.rsz) }}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td class="extra-col" style="display: none;">
+                                    {{ result.technique_code or '-' }}
+                                </td>
+                                <td class="extra-col" style="display: none;">
+                                    {{ result.unit_code or '-' }}
+                                </td>
+                                <td>
+                                    {% if result.date_performed %}
+                                        {{ result.date_performed.strftime('%d/%m/%Y') }}
+                                        <br>
+                                        <small class="text-muted">{{ result.date_performed.strftime('%H:%M') }}</small>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if result.z_score is not none %}
+                                        {% set abs_z = result.z_score|abs %}
+                                        {% if abs_z < 2 %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> Eccellente
+                                            </span>
+                                        {% elif abs_z < 3 %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-exclamation-triangle"></i> Accettabile
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times"></i> Scarsa
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" 
+                                                onclick="showResultDetail({{ result.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" 
+                                                onclick="plotSingleResult('{{ result.parameter_code }}')">
+                                            <i class="fas fa-chart-line"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessun Risultato Disponibile</h5>
+                    <p class="text-muted">
+                        Non sono stati trovati risultati per questo laboratorio.<br>
+                        Carica il primo file di risultati per iniziare l'analisi statistica.
+                    </p>
+                    <a href="{{ url_for('stats_bp.upload_results', lab_code=lab_code) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-upload"></i>
+                        Carica Risultati
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Legenda Performance -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="fas fa-info-circle"></i>
+                Legenda Performance
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-success me-2">Eccellente</span>
+                        <span>|Z-Score| < 2</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-warning me-2">Accettabile</span>
+                        <span>2 ≤ |Z-Score| < 3</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-danger me-2">Scarsa</span>
+                        <span>|Z-Score| ≥ 3</span>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <small class="text-muted">
+                <strong>Z-Score:</strong> (Risultato - Valore Assegnato) / Deviazione Standard Target<br>
+                <strong>SZ²:</strong> Z-Score al quadrato<br>
+                <strong>RSZ:</strong> Robust Z-Score (basato su mediana e MAD)
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Dettaglio Risultato -->
+<div class="modal fade" id="resultDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i>
+                    Dettaglio Risultato
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="resultDetailContent">
+                <!-- Contenuto caricato dinamicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Chiudi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const showAllColumnsToggle = document.getElementById('showAllColumns');
+    const extraCols = document.querySelectorAll('.extra-col');
+    
+    // Toggle colonne extra
+    showAllColumnsToggle.addEventListener('change', function() {
+        extraCols.forEach(col => {
+            col.style.display = this.checked ? 'table-cell' : 'none';
+        });
+    });
+
+    // Evidenziazione righe per performance
+    const rows = document.querySelectorAll('.result-row');
+    rows.forEach(row => {
+        const zScore = parseFloat(row.getAttribute('data-z-score') || 0);
+        const absZ = Math.abs(zScore);
+        
+        if (absZ >= 3) {
+            row.style.borderLeft = '4px solid #dc3545';
+        } else if (absZ >= 2) {
+            row.style.borderLeft = '4px solid #ffc107';
+        } else {
+            row.style.borderLeft = '4px solid #198754';
+        }
+    });
+});
+
+function showResultDetail(resultId) {
+    // TODO: Implementare caricamento dettagli via AJAX
+    const modal = new bootstrap.Modal(document.getElementById('resultDetailModal'));
+    document.getElementById('resultDetailContent').innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <p class="mt-2">Caricamento dettagli risultato ${resultId}...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Simulazione caricamento
+    setTimeout(() => {
+        document.getElementById('resultDetailContent').innerHTML = `
+            <div class="alert alert-info">
+                <strong>Risultato ID:</strong> ${resultId}<br>
+                Funzionalità di dettaglio in sviluppo...
+            </div>
+        `;
+    }, 1000);
+}
+
+function plotSingleResult(parameterCode) {
+    // Redirect ai grafici con filtro per parametro
+    window.open('{{ url_for("stats_bp.control_charts", lab_code=lab_code) }}?parameter=' + parameterCode, '_blank');
+}
+
+function exportToCSV() {
+    // TODO: Implementare export CSV
+    alert('Export CSV - Funzionalità in sviluppo');
+}
+
+function exportToPDF() {
+    // TODO: Implementare export PDF  
+    alert('Export PDF - Funzionalità in sviluppo');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Risultati - {{ lab_code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.lab_hub', lab_code=lab_code) }}">
+                            Hub {{ lab_code }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        Upload Risultati
+                    </li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-upload text-primary"></i>
+                Upload Risultati PT
+            </h1>
+            <p class="text-muted mb-0">
+                Carica i risultati del laboratorio {{ lab_code }} per calcolo automatico z-score
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('stats_bp.download_template', lab_code=lab_code) }}" 
+               class="btn btn-outline-success">
+                <i class="fas fa-download"></i> Scarica Template CSV
+            </a>
+            <a href="{{ url_for('stats_bp.results_view', lab_code=lab_code) }}" 
+               class="btn btn-outline-info">
+                <i class="fas fa-table"></i> Visualizza Risultati
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Card principale -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-csv"></i>
+                        Caricamento File Risultati
+                    </h5>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Istruzioni -->
+                    <div class="alert alert-info" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle"></i>
+                            Come procedere:
+                        </h6>
+                        <ol class="mb-0">
+                            <li>Scarica il <strong>template CSV</strong> usando il bottone sopra</li>
+                            <li>Compila il file con i tuoi risultati nel campo <code>result_value</code></li>
+                            <li>Salva il file e caricalo qui sotto per il calcolo automatico</li>
+                        </ol>
+                    </div>
+
+                    <!-- Form di Upload -->
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <div class="mb-4">
+                            <label for="file" class="form-label">
+                                <strong>Seleziona File CSV</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="file" 
+                                   name="file" 
+                                   accept=".csv" 
+                                   required>
+                            <div class="form-text">
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                Supportati solo file CSV. Dimensione massima: 10MB
+                            </div>
+                        </div>
+
+                        <!-- Anteprima file selezionato -->
+                        <div id="filePreview" class="mb-4" style="display: none;">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>File selezionato:</h6>
+                                    <p class="mb-0" id="fileName"></p>
+                                    <small class="text-muted" id="fileSize"></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Opzioni avanzate (collassabile) -->
+                        <div class="mb-4">
+                            <div class="d-grid">
+                                <button class="btn btn-outline-secondary" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#advancedOptions">
+                                    <i class="fas fa-cog"></i>
+                                    Opzioni Avanzate
+                                </button>
+                            </div>
+                            
+                            <div class="collapse mt-3" id="advancedOptions">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="skipValidation">
+                                                    <label class="form-check-label" for="skipValidation">
+                                                        Salta validazione rigorosa
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="overwriteExisting">
+                                                    <label class="form-check-label" for="overwriteExisting">
+                                                        Sovrascrivi risultati esistenti
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottoni di azione -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('main.lab_hub', lab_code=lab_code) }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                                Annulla
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-calculator"></i>
+                                <span id="submitText">Carica e Calcola</span>
+                                <span id="loadingSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Statistiche Rapide (se ci sono risultati precedenti) -->
+            <div class="card mt-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie"></i>
+                        Statistiche Lab {{ lab_code }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center g-3">
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-vial fa-2x text-primary mb-2"></i>
+                                <h5 class="mb-1">--</h5>
+                                <small class="text-muted">Risultati Totali</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                                <h5 class="mb-1">--</h5>
+                                <small class="text-muted">Performance Eccellente</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                                <h5 class="mb-1">--</h5>
+                                <small class="text-muted">Performance Accettabile</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                                <h5 class="mb-1">--</h5>
+                                <small class="text-muted">Performance Scarsa</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <small class="text-muted">
+                            Le statistiche si aggiorneranno dopo il caricamento dei risultati
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('file');
+    const filePreview = document.getElementById('filePreview');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const uploadForm = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    // Gestione preview file selezionato
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = `Dimensione: ${(file.size / 1024).toFixed(1)} KB`;
+            filePreview.style.display = 'block';
+            
+            // Validazione dimensione file (10MB max)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File troppo grande! Dimensione massima: 10MB');
+                fileInput.value = '';
+                filePreview.style.display = 'none';
+                return;
+            }
+            
+            // Validazione estensione
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                alert('Formato file non supportato! Utilizzare solo file CSV.');
+                fileInput.value = '';
+                filePreview.style.display = 'none';
+                return;
+            }
+        } else {
+            filePreview.style.display = 'none';
+        }
+    });
+
+    // Gestione submit form con loading
+    uploadForm.addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitText.textContent = 'Elaborazione...';
+        loadingSpinner.style.display = 'inline-block';
+        
+        // Timeout di sicurezza (30 secondi)
+        setTimeout(function() {
+            if (submitBtn.disabled) {
+                submitBtn.disabled = false;
+                submitText.textContent = 'Carica e Calcola';
+                loadingSpinner.style.display = 'none';
+                alert('Timeout: Operazione troppo lunga. Riprovare con un file più piccolo.');
+            }
+        }, 30000);
+    });
+
+    // Drag & Drop support
+    const cardBody = document.querySelector('.card-body');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        cardBody.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        cardBody.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        cardBody.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+        cardBody.style.backgroundColor = '#f8f9fa';
+        cardBody.style.border = '2px dashed #007bff';
+    }
+    
+    function unhighlight(e) {
+        cardBody.style.backgroundColor = '';
+        cardBody.style.border = '';
+    }
+    
+    cardBody.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            fileInput.files = files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    }
+});
+</script>
+{% endblock %}

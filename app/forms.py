@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, BooleanField, FloatField, IntegerField, SubmitField
+from wtforms import StringField, TextAreaField, SelectField, BooleanField, FloatField, IntegerField, SubmitField, SelectMultipleField
 from wtforms.validators import DataRequired, Length, Optional, NumberRange, ValidationError
-from app.models import Unit, Technique, Lab, User, Parameter, Provider
+from app.models import Unit, Technique, Lab, User, Parameter, Provider, Result, Cycle
 
 
 class UnitForm(FlaskForm):
@@ -164,3 +164,78 @@ class ProviderForm(FlaskForm):
             provider = Provider.query.filter_by(code=field.data).first()
             if provider:
                 raise ValidationError('Questo codice fornitore esiste già.')
+
+
+class ChartsForm(FlaskForm):
+    """Form completo per grafici - 100% Python, no JavaScript"""
+    parameters = SelectMultipleField('Parametri', coerce=str)
+    techniques = SelectMultipleField('Tecniche', coerce=str) 
+    cycles = SelectMultipleField('Cicli', coerce=str)
+    days = SelectField('Periodo', 
+                      choices=[
+                          ('7', '7 giorni'),
+                          ('30', '30 giorni'),
+                          ('60', '60 giorni'),
+                          ('90', '90 giorni')
+                      ], 
+                      default='30')
+    submit = SubmitField('Aggiorna Grafico')
+    
+    def __init__(self, lab_code=None, *args, **kwargs):
+        super(ChartsForm, self).__init__(*args, **kwargs)
+        self.lab_code = lab_code
+        self.populate_choices()
+    
+    def populate_choices(self):
+        """Popola le scelte dai dati del database"""
+        if not self.lab_code:
+            return
+            
+        from app import db
+        
+        try:
+            # Parametri disponibili per questo lab
+            params = db.session.query(Result.parameter_code, Parameter.name)\
+                .join(Parameter, Result.parameter_code == Parameter.code)\
+                .filter(Result.lab_code == self.lab_code)\
+                .distinct().all()
+            
+            self.parameters.choices = [(p[0], f"{p[0]} - {p[1] or p[0]}") for p in params]
+            
+            # Tecniche disponibili
+            techs = db.session.query(Result.technique_code, Technique.name)\
+                .join(Technique, Result.technique_code == Technique.code, isouter=True)\
+                .filter(Result.lab_code == self.lab_code, Result.technique_code.isnot(None))\
+                .distinct().all()
+            
+            self.techniques.choices = [(t[0], f"{t[0]} - {t[1] or t[0]}") for t in techs]
+            
+            # Cicli disponibili  
+            cycles = db.session.query(Result.cycle_code, Cycle.name)\
+                .join(Cycle, Result.cycle_code == Cycle.code)\
+                .filter(Result.lab_code == self.lab_code)\
+                .distinct().all()
+                
+            self.cycles.choices = [(c[0], f"{c[0]} - {c[1] or c[0]}") for c in cycles]
+            
+        except Exception as e:
+            print(f"Errore nel caricamento scelte: {e}")
+            # Fallback vuoto
+            self.parameters.choices = []
+            self.techniques.choices = []
+            self.cycles.choices = []
+
+class ChartFiltersForm(FlaskForm):
+    """Form per i filtri dei grafici di controllo - Versione Semplificata"""
+    days = SelectField('Periodo Temporale', choices=[
+        ('7', 'Ultimi 7 giorni'),
+        ('30', 'Ultimi 30 giorni'),
+        ('90', 'Ultimi 90 giorni'),
+        ('365', 'Ultimo anno'),
+        ('', 'Tutti i dati')
+    ], default='30', validators=[Optional()])
+    submit = SubmitField('Aggiorna Grafico')
+
+    def __init__(self, lab_code=None, *args, **kwargs):
+        super(ChartFiltersForm, self).__init__(*args, **kwargs)
+        self.lab_code = lab_code

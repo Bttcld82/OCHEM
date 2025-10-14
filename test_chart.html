@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Plotly Chart</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #chart { border: 2px solid #ddd; margin: 20px 0; }
+        .info { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Test Plotly Control Chart</h1>
+    
+    <div class="info">
+        <h3>Test Funzionamento Plotly.js</h3>
+        <p>Questo test verifica che Plotly.js funzioni correttamente nel browser.</p>
+        <button onclick="createChart()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px;">
+            Crea Grafico Test
+        </button>
+    </div>
+    
+    <div id="chart" style="width: 100%; height: 500px;"></div>
+    
+    <div class="info">
+        <h4>Dati di Test:</h4>
+        <ul>
+            <li><strong>Verde:</strong> Punti sotto controllo (|z| < 2)</li>
+            <li><strong>Arancione:</strong> Punti in warning (2 ≤ |z| < 3)</li>
+            <li><strong>Rosso:</strong> Punti fuori controllo (|z| ≥ 3)</li>
+        </ul>
+    </div>
+
+    <script>
+    function createChart() {
+        console.log('Creazione grafico test...');
+        
+        // Dati di test
+        const testData = {
+            x: ['2025-01-10', '2025-01-11', '2025-01-12', '2025-01-13', '2025-01-14', '2025-01-15', '2025-01-16', '2025-01-17', '2025-01-18', '2025-01-19'],
+            y: [0.5, -1.2, 2.3, -0.8, 1.1, -2.5, 0.3, 3.2, -3.5, 1.8],
+            getColor: function(z) {
+                const abs_z = Math.abs(z);
+                if (abs_z >= 3) return 'red';
+                if (abs_z >= 2) return 'orange';
+                return 'green';
+            }
+        };
+        
+        // Trace principale
+        const dataTrace = {
+            x: testData.x,
+            y: testData.y,
+            type: 'scatter',
+            mode: 'markers+lines',
+            name: 'Z-Score',
+            marker: {
+                color: testData.y.map(z => testData.getColor(z)),
+                size: 10,
+                line: { color: 'white', width: 2 }
+            },
+            line: { color: 'blue', width: 2 }
+        };
+        
+        // Linee di controllo
+        const xRange = [testData.x[0], testData.x[testData.x.length - 1]];
+        
+        const upperLimit = {
+            x: xRange,
+            y: [3, 3],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'UCL (+3σ)',
+            line: { color: 'red', dash: 'dash', width: 2 }
+        };
+        
+        const lowerLimit = {
+            x: xRange,
+            y: [-3, -3],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'LCL (-3σ)',
+            line: { color: 'red', dash: 'dash', width: 2 }
+        };
+        
+        const upperWarning = {
+            x: xRange,
+            y: [2, 2],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'UWL (+2σ)',
+            line: { color: 'orange', dash: 'dot', width: 1 }
+        };
+        
+        const lowerWarning = {
+            x: xRange,
+            y: [-2, -2],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'LWL (-2σ)',
+            line: { color: 'orange', dash: 'dot', width: 1 }
+        };
+        
+        const centerLine = {
+            x: xRange,
+            y: [0, 0],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'CL (0σ)',
+            line: { color: 'green', width: 2 }
+        };
+        
+        const layout = {
+            title: {
+                text: 'Control Chart Test - Dati Demo',
+                font: { size: 18 }
+            },
+            xaxis: {
+                title: 'Data/Ora',
+                type: 'date'
+            },
+            yaxis: {
+                title: 'Z-Score',
+                range: [-4, 4]
+            },
+            showlegend: true,
+            height: 500,
+            margin: { t: 60, r: 40, b: 60, l: 60 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+        
+        try {
+            Plotly.newPlot('chart', [dataTrace, centerLine, upperWarning, lowerWarning, upperLimit, lowerLimit], layout, config);
+            console.log('Grafico creato con successo!');
+            
+            // Aggiungi evento click
+            document.getElementById('chart').on('plotly_click', function(data) {
+                const point = data.points[0];
+                alert(`Punto cliccato:\nData: ${point.x}\nZ-Score: ${point.y.toFixed(3)}`);
+            });
+            
+        } catch (error) {
+            console.error('Errore nella creazione del grafico:', error);
+            document.getElementById('chart').innerHTML = '<div style="color: red; text-align: center; padding: 50px;">Errore: ' + error.message + '</div>';
+        }
+    }
+    
+    // Crea automaticamente il grafico al caricamento
+    window.addEventListener('load', function() {
+        console.log('Pagina caricata - inizializzazione grafico...');
+        setTimeout(createChart, 500); // Aspetta mezzo secondo
+    });
+    </script>
+</body>
+</html>

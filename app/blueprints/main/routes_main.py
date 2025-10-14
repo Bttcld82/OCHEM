@@ -79,10 +79,27 @@ def lab_hub(lab_code):
     # Verifica se l'utente è owner per mostrare link di gestione
     is_owner = current_user.has_lab_role(lab_code, "owner_lab")
     
+    # Statistiche per la card QC (importiamo i modelli necessari)
+    from app.models import Result, Parameter
+    stats = {
+        'total_results': 0,
+        'active_cycles': len([c for c in lab_cycles if c.status == 'published']),
+        'parameters_count': Parameter.query.count() if Parameter.query.first() else 0
+    }
+    
+    # Conta i risultati totali se la tabella esiste
+    try:
+        stats['total_results'] = Result.query.join(Cycle).filter(
+            Cycle.status == 'published'
+        ).count()
+    except Exception:
+        pass
+    
     return render_template("main/lab_hub.html",
                          lab=lab,
                          user_role=user_role,
                          is_owner=is_owner,
                          lab_cycles=lab_cycles,
                          lab_uploads=lab_uploads,
-                         lab_users=lab_users)
+                         lab_users=lab_users,
+                         stats=stats)

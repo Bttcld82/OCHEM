@@ -39,6 +39,9 @@ def create_app() -> Flask:
     app.register_blueprint(auth_bp, url_prefix="/auth")
     from .blueprints.dati import bp as dati_bp
     app.register_blueprint(dati_bp, url_prefix="/dati")
+    from .blueprints.stats import stats_bp, stats_general_bp
+    app.register_blueprint(stats_bp)
+    app.register_blueprint(stats_general_bp)
 
 
     # Import modelli se presenti

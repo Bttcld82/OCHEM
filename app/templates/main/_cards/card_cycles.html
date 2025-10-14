@@ -84,8 +84,8 @@
                 📊 Visualizza Tutti
             </a>
             {% if lab_cycles|selectattr('status', 'equalto', 'active')|list|length > 0 %}
-                <a href="#" class="btn btn-outline-primary btn-sm">
-                    📈 Report Attivi
+                <a href="{{ url_for('stats_bp.results_view', lab_code=lab.code) }}" class="btn btn-outline-primary btn-sm">
+                    📈 Risultati & Statistiche
                 </a>
             {% endif %}
         </div>

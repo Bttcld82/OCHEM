@@ -75,16 +75,16 @@
     <div class="card-footer bg-light">
         <div class="d-grid gap-2">
             {% if user_role.name in ['owner_lab', 'analyst'] %}
-                <button class="btn btn-info btn-sm" onclick="openUploadModal()">
-                    ⬆️ Carica Nuovo File
-                </button>
+                <a href="{{ url_for('stats_bp.upload_results', lab_code=lab.code) }}" class="btn btn-info btn-sm">
+                    ⬆️ Carica Risultati PT
+                </a>
             {% endif %}
-            <a href="#" class="btn btn-outline-info btn-sm">
-                📂 Visualizza Tutti
+            <a href="{{ url_for('stats_bp.results_view', lab_code=lab.code) }}" class="btn btn-outline-info btn-sm">
+                � Visualizza Statistiche
             </a>
             {% if lab_uploads|length > 0 %}
-                <a href="#" class="btn btn-outline-secondary btn-sm">
-                    📥 Download Batch
+                <a href="{{ url_for('stats_bp.control_charts', lab_code=lab.code) }}" class="btn btn-outline-primary btn-sm">
+                    � Grafici Controllo
                 </a>
             {% endif %}
         </div>

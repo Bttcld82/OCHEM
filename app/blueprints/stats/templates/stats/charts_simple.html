@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Grafici di Controllo - {{ lab_code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-chart-line text-primary"></i>
+                Control Charts - {{ lab_code }}
+            </h1>
+            <p class="text-muted mb-0">
+                Grafici di controllo Z-Score - 100% Python, no JavaScript
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('stats_bp.results_view', lab_code=lab_code) }}" 
+               class="btn btn-outline-info">
+                <i class="fas fa-table"></i> Visualizza Risultati
+            </a>
+            <a href="{{ url_for('stats_bp.upload_results', lab_code=lab_code) }}" 
+               class="btn btn-success">
+                <i class="fas fa-upload"></i> Carica Risultati
+            </a>
+        </div>
+    </div>
+
+    <!-- Form Filtri -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="fas fa-filter"></i>
+                Filtri per Control Chart
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <div class="row g-3">
+                    <!-- Parametri -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            {{ form.parameters.label }}
+                            <small class="text-muted d-block">Ctrl+click per selezione multipla</small>
+                        </label>
+                        {{ form.parameters(class="form-select", size="8") }}
+                        {% if form.parameters.choices|length == 0 %}
+                        <small class="text-warning">Nessun parametro trovato nel database</small>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Tecniche -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            {{ form.techniques.label }}
+                            <small class="text-muted d-block">Opzionale, filtra per tecnica</small>
+                        </label>
+                        {{ form.techniques(class="form-select", size="8") }}
+                        {% if form.techniques.choices|length == 0 %}
+                        <small class="text-info">Nessuna tecnica disponibile</small>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Cicli -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            {{ form.cycles.label }}
+                            <small class="text-muted d-block">Opzionale, filtra per ciclo</small>
+                        </label>
+                        {{ form.cycles(class="form-select", size="8") }}
+                        {% if form.cycles.choices|length == 0 %}
+                        <small class="text-info">Nessun ciclo disponibile</small>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Periodo e Submit -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            {{ form.days.label }}
+                        </label>
+                        {{ form.days(class="form-select mb-3") }}
+                        
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                        </div>
+                        
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <h6 class="text-primary mb-2">Istruzioni:</h6>
+                            <ul class="small mb-0">
+                                <li>Seleziona almeno un <strong>parametro</strong></li>
+                                <li>Usa <kbd>Ctrl+click</kbd> per selezioni multiple</li>
+                                <li>Tecniche e cicli sono opzionali</li>
+                                <li>Il grafico si aggiorna automaticamente</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Grafico -->
+    {% if chart_html %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-area"></i>
+                Control Chart Z-Score
+            </h5>
+        </div>
+        <div class="card-body p-2">
+            {{ chart_html | safe }}
+        </div>
+    </div>
+    
+    <!-- Tabella Dati -->
+    {% if chart_data and chart_data.x %}
+    <div class="card">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="fas fa-table"></i>
+                Dati del Grafico ({{ chart_data.x|length }} punti)
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive" style="max-height: 400px;">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>#</th>
+                            <th>Data/Ora</th>
+                            <th>Z-Score</th>
+                            <th>Performance</th>
+                            <th>Stato Controllo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in range(chart_data.x|length) %}
+                        {% set z_val = chart_data.y[i] %}
+                        {% set abs_z = z_val|abs %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ chart_data.x[i] }}</td>
+                            <td class="text-end">
+                                <span class="badge {% if abs_z < 2 %}bg-success{% elif abs_z < 3 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ "%.3f"|format(z_val) }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if abs_z < 2 %}
+                                    <i class="fas fa-check-circle text-success"></i> Eccellente
+                                {% elif abs_z < 3 %}
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> Accettabile
+                                {% else %}
+                                    <i class="fas fa-times-circle text-danger"></i> Scarso
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if abs_z >= 3 %}
+                                    <span class="badge bg-danger">Fuori Controllo</span>
+                                {% elif abs_z >= 2 %}
+                                    <span class="badge bg-warning text-dark">Warning</span>
+                                {% else %}
+                                    <span class="badge bg-success">Sotto Controllo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Statistiche Riassunto -->
+            <div class="row mt-3 text-center">
+                {% set excellent = chart_data.y|map('abs')|select('<', 2)|list|length %}
+                {% set acceptable = chart_data.y|map('abs')|select('>=', 2)|select('<', 3)|list|length %}
+                {% set poor = chart_data.y|map('abs')|select('>=', 3)|list|length %}
+                
+                <div class="col-3">
+                    <div class="border rounded p-2 bg-success bg-opacity-10">
+                        <h5 class="text-success">{{ excellent }}</h5>
+                        <small>Eccellenti</small>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="border rounded p-2 bg-warning bg-opacity-10">
+                        <h5 class="text-warning">{{ acceptable }}</h5>
+                        <small>Accettabili</small>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="border rounded p-2 bg-danger bg-opacity-10">
+                        <h5 class="text-danger">{{ poor }}</h5>
+                        <small>Scarsi</small>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="border rounded p-2 bg-primary bg-opacity-10">
+                        <h5 class="text-primary">{{ chart_data.x|length }}</h5>
+                        <small>Totali</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <!-- Messaggio nessun grafico -->
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-chart-line fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">Seleziona i Filtri per Visualizzare il Grafico</h4>
+            <p class="text-muted">
+                Scegli almeno un parametro dai filtri sopra e clicca "Aggiorna Grafico"
+            </p>
+            
+            {% if form.parameters.choices|length == 0 %}
+            <div class="alert alert-warning mt-3">
+                <h6><i class="fas fa-exclamation-triangle"></i> Nessun dato nel database</h6>
+                <p class="mb-0">
+                    Non sono presenti risultati per il laboratorio {{ lab_code }}.
+                    <a href="{{ url_for('stats_bp.upload_results', lab_code=lab_code) }}" class="btn btn-success btn-sm ms-2">
+                        <i class="fas fa-upload"></i> Carica Risultati
+                    </a>
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Nessun JavaScript necessario! -->
+<script>
+console.log('Template 100% Python caricato - nessun JavaScript complesso necessario!');
+</script>
+{% endblock %}
