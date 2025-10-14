@@ -1,0 +1,302 @@
+<!-- Card QC Tools -->
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-tools"></i>
+            QC Tools
+        </h5>
+        <span class="badge bg-dark text-warning">
+            <i class="fas fa-star"></i> PRO
+        </span>
+    </div>
+    
+    <div class="card-body">
+        <!-- Strumenti Disponibili -->
+        <h6 class="fw-bold mb-3">Strumenti Disponibili</h6>
+        
+        <div class="list-group list-group-flush">
+            <!-- Control Charts -->
+            <div class="list-group-item px-0 d-flex align-items-center">
+                <i class="fas fa-chart-line text-primary me-3 fa-lg"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">Control Charts</div>
+                    <small class="text-muted">
+                        Grafici di controllo Xbar-R, CUSUM
+                    </small>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" onclick="openQCTool('control-charts')">
+                    Apri
+                </button>
+            </div>
+            
+            <!-- Z-Score Calculator -->
+            <div class="list-group-item px-0 d-flex align-items-center">
+                <i class="fas fa-calculator text-success me-3 fa-lg"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">Z-Score Calculator</div>
+                    <small class="text-muted">
+                        Calcolo Z-score e valutazione prestazioni
+                    </small>
+                </div>
+                <button class="btn btn-outline-success btn-sm" onclick="openQCTool('z-score')">
+                    Apri
+                </button>
+            </div>
+            
+            <!-- Trend Analysis -->
+            <div class="list-group-item px-0 d-flex align-items-center">
+                <i class="fas fa-trending-up text-info me-3 fa-lg"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">Trend Analysis</div>
+                    <small class="text-muted">
+                        Analisi tendenze e deriva strumentale
+                    </small>
+                </div>
+                <button class="btn btn-outline-info btn-sm" onclick="openQCTool('trend-analysis')">
+                    Apri
+                </button>
+            </div>
+            
+            <!-- Uncertainty Calculator -->
+            <div class="list-group-item px-0 d-flex align-items-center">
+                <i class="fas fa-question-circle text-danger me-3 fa-lg"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">Incertezza di Misura</div>
+                    <small class="text-muted">
+                        Calcolo incertezza secondo GUM
+                    </small>
+                </div>
+                <button class="btn btn-outline-danger btn-sm" onclick="openQCTool('uncertainty')">
+                    Apri
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="mt-3 p-2 bg-light rounded">
+            <div class="row g-2 text-center">
+                <div class="col-4">
+                    <div class="fw-bold text-warning">12</div>
+                    <small class="text-muted">Analisi QC</small>
+                </div>
+                <div class="col-4">
+                    <div class="fw-bold text-success">98%</div>
+                    <small class="text-muted">Conformità</small>
+                </div>
+                <div class="col-4">
+                    <div class="fw-bold text-info">5</div>
+                    <small class="text-muted">Reports</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-footer bg-light">
+        <div class="d-grid gap-2">
+            <button class="btn btn-warning text-dark btn-sm" onclick="openQCDashboard()">
+                📊 Dashboard QC Completa
+            </button>
+            <a href="#" class="btn btn-outline-warning btn-sm">
+                📚 Guida Strumenti
+            </a>
+            {% if user_role.name in ['owner_lab', 'analyst'] %}
+                <a href="#" class="btn btn-outline-secondary btn-sm">
+                    ⚙️ Configura QC
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal QC Tools -->
+<div class="modal fade" id="qcToolModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qcToolTitle">
+                    <i class="fas fa-tools"></i>
+                    Strumento QC
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="qcToolContent">
+                <!-- Contenuto dinamico strumento QC -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Caricamento...</span>
+                    </div>
+                    <p class="mt-2">Caricamento strumento QC...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Chiudi
+                </button>
+                <button type="button" class="btn btn-warning" id="exportQCButton">
+                    📥 Esporta Risultati
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openQCTool(toolType) {
+    const modal = new bootstrap.Modal(document.getElementById('qcToolModal'));
+    const titleEl = document.getElementById('qcToolTitle');
+    const contentEl = document.getElementById('qcToolContent');
+    
+    // Aggiorna titolo in base al tool
+    const toolTitles = {
+        'control-charts': '📊 Control Charts',
+        'z-score': '🧮 Z-Score Calculator',
+        'trend-analysis': '📈 Trend Analysis',
+        'uncertainty': '❓ Uncertainty Calculator'
+    };
+    
+    titleEl.innerHTML = `<i class="fas fa-tools"></i> ${toolTitles[toolType] || 'Strumento QC'}`;
+    
+    // Simula caricamento contenuto
+    contentEl.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-warning" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <p class="mt-2">Caricamento ${toolTitles[toolType]}...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Simula caricamento asincrono
+    setTimeout(() => {
+        contentEl.innerHTML = getQCToolContent(toolType);
+    }, 1500);
+}
+
+function getQCToolContent(toolType) {
+    const contents = {
+        'control-charts': `
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle"></i> Control Charts Tool</h6>
+                <p>Strumento per la creazione e analisi di grafici di controllo per il monitoraggio della qualità analitica.</p>
+            </div>
+            <form>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Tipo Grafico</label>
+                        <select class="form-select">
+                            <option>X-bar & R Chart</option>
+                            <option>CUSUM Chart</option>
+                            <option>EWMA Chart</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Parametro</label>
+                        <select class="form-select">
+                            <option>Seleziona parametro...</option>
+                            <option>pH</option>
+                            <option>Conducibilità</option>
+                            <option>Torbidità</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-primary">Genera Grafico</button>
+                </div>
+            </form>
+        `,
+        'z-score': `
+            <div class="alert alert-success">
+                <h6><i class="fas fa-calculator"></i> Z-Score Calculator</h6>
+                <p>Calcola il Z-score per valutare le prestazioni del laboratorio nei confronti dei valori di riferimento.</p>
+            </div>
+            <form>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Valore Misurato</label>
+                        <input type="number" class="form-control" step="0.001">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Valore Riferimento</label>
+                        <input type="number" class="form-control" step="0.001">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Deviazione Standard</label>
+                        <input type="number" class="form-control" step="0.001">
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-success">Calcola Z-Score</button>
+                </div>
+            </form>
+        `,
+        'trend-analysis': `
+            <div class="alert alert-info">
+                <h6><i class="fas fa-trending-up"></i> Trend Analysis</h6>
+                <p>Analisi delle tendenze temporali per identificare derive strumentali o sistematiche.</p>
+            </div>
+            <form>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Periodo Analisi</label>
+                        <select class="form-select">
+                            <option>Ultimo Mese</option>
+                            <option>Ultimi 3 Mesi</option>
+                            <option>Ultimo Anno</option>
+                            <option>Personalizzato</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Metodo Analisi</label>
+                        <select class="form-select">
+                            <option>Regressione Lineare</option>
+                            <option>Media Mobile</option>
+                            <option>Mann-Kendall Test</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-info">Avvia Analisi</button>
+                </div>
+            </form>
+        `,
+        'uncertainty': `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-question-circle"></i> Uncertainty Calculator</h6>
+                <p>Calcolo dell'incertezza di misura secondo le linee guida GUM (Guide to Uncertainty in Measurement).</p>
+            </div>
+            <form>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Tipo Incertezza</label>
+                        <select class="form-select">
+                            <option>Tipo A (Statistica)</option>
+                            <option>Tipo B (Non Statistica)</option>
+                            <option>Combinata</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Metodo Calcolo</label>
+                        <select class="form-select">
+                            <option>Propagazione Incertezze</option>
+                            <option>Monte Carlo</option>
+                            <option>Bootstrap</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-danger">Calcola Incertezza</button>
+                </div>
+            </form>
+        `
+    };
+    
+    return contents[toolType] || '<p>Contenuto non disponibile</p>';
+}
+
+function openQCDashboard() {
+    // TODO: Implementare dashboard QC completa
+    alert('Dashboard QC completa - In sviluppo');
+}
+</script>

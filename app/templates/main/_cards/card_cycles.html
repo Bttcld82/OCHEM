@@ -1,0 +1,93 @@
+<!-- Card Gestione Cicli PT -->
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-recycle"></i>
+            Cicli PT
+        </h5>
+        <span class="badge bg-light text-success">
+            {{ lab_cycles|length }} totali
+        </span>
+    </div>
+    
+    <div class="card-body">
+        <!-- Statistiche Cicli -->
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <div class="text-center p-2 bg-light rounded">
+                    <div class="fw-bold text-success">
+                        {% set active = lab_cycles|selectattr('status', 'equalto', 'active')|list|length %}
+                        {{ active }}
+                    </div>
+                    <small class="text-muted">Attivi</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="text-center p-2 bg-light rounded">
+                    <div class="fw-bold text-warning">
+                        {% set pending = lab_cycles|selectattr('status', 'equalto', 'pending')|list|length %}
+                        {{ pending }}
+                    </div>
+                    <small class="text-muted">Pendenti</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cicli Recenti -->
+        <h6 class="fw-bold mb-2">Cicli Recenti</h6>
+        <div class="list-group list-group-flush">
+            {% if lab_cycles[:3] %}
+                {% for cycle in lab_cycles[:3] %}
+                <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-bold">{{ cycle.code }}</div>
+                        <small class="text-muted">
+                            {% if cycle.technique %}
+                                {{ cycle.technique.name }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        {% if cycle.status == 'active' %}
+                            <span class="badge bg-success">Attivo</span>
+                        {% elif cycle.status == 'pending' %}
+                            <span class="badge bg-warning">Pendente</span>
+                        {% elif cycle.status == 'completed' %}
+                            <span class="badge bg-secondary">Completato</span>
+                        {% endif %}
+                        <br>
+                        <small class="text-muted">
+                            {% if cycle.end_date %}
+                                Scade: {{ cycle.end_date.strftime('%d/%m') }}
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-info-circle mb-2"></i>
+                    <p class="mb-0">Nessun ciclo PT presente</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card-footer bg-light">
+        <div class="d-grid gap-2">
+            {% if user_role.name in ['owner_lab', 'analyst'] %}
+                <a href="{{ url_for('admin_bp.cycles_list', lab_id=lab.id) }}" class="btn btn-success btn-sm">
+                    📋 Gestisci Cicli
+                </a>
+            {% endif %}
+            <a href="#" class="btn btn-outline-success btn-sm">
+                📊 Visualizza Tutti
+            </a>
+            {% if lab_cycles|selectattr('status', 'equalto', 'active')|list|length > 0 %}
+                <a href="#" class="btn btn-outline-primary btn-sm">
+                    📈 Report Attivi
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>

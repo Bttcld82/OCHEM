@@ -129,14 +129,41 @@ def user_toggle_active(user_id):
 @admin_bp.route("/users/<int:user_id>/reset_password", methods=["POST"])
 def user_reset_password(user_id):
     """Reset password utente"""
-    user = User.query.get_or_404(user_id)
-    temp_password = "temp123"
-    user.password_hash = generate_password_hash(temp_password)
-    user.updated_at = datetime.utcnow()
-    db.session.commit()
-    
-    flash(f"Password di {user.name} resettata a: {temp_password}", "success")
-    return redirect(url_for("admin_bp.users_list"))
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        # Genera una password temporanea più sicura
+        import secrets
+        import string
+        alphabet = string.ascii_letters + string.digits
+        temp_password = ''.join(secrets.choice(alphabet) for i in range(12))
+        
+        user.set_password(temp_password)  # Usa il metodo del modello User
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        message = f"🔑 Password di {user.name} resettata con successo! Nuova password temporanea: <strong>{temp_password}</strong><br><small>⚠️ Comunicare questa password all'utente e richiedere di cambiarla al primo accesso.</small>"
+        flash(message, "success")
+        
+        # Se è una richiesta AJAX, restituisci JSON
+        if request.content_type == 'application/json':
+            return jsonify({
+                'success': True, 
+                'message': f'Password resettata. Nuova password: {temp_password}',
+                'temp_password': temp_password
+            })
+        
+        # Altrimenti redirect
+        return redirect(url_for("admin_bp.users_edit", user_id=user_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Errore durante il reset della password: {str(e)}", "danger")
+        
+        if request.content_type == 'application/json':
+            return jsonify({'success': False, 'message': str(e)}), 400
+        
+        return redirect(url_for("admin_bp.users_edit", user_id=user_id))
 
 # ===========================
 # GESTIONE RUOLI ADMIN

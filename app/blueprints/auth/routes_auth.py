@@ -20,13 +20,13 @@ def login():
         
         if not email or not password:
             flash("Email e password sono obbligatori.", "danger")
-            return render_template("login_simple.html")
+            return render_template("login.html")
         
         user = User.query.filter_by(email=email, is_active=True).first()
         
         if not user or not user.check_password(password):
             flash("Credenziali non valide.", "danger")
-            return render_template("login_simple.html")
+            return render_template("login.html")
         
         # Aggiorna ultimo accesso
         user.last_login_at = datetime.utcnow()

@@ -166,10 +166,107 @@
 
 <script>
 function resetPassword(userId) {
-    if (confirm('Sei sicuro di voler generare una nuova password per questo utente?')) {
-        // TODO: Implementare reset password
-        alert('Funzionalità non ancora implementata');
+    if (confirm('Sei sicuro di voler generare una nuova password temporanea per questo utente?\n\nLa nuova password verrà mostrata e dovrà essere comunicata all\'utente.')) {
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '🔄 Resettando...';
+        button.disabled = true;
+        
+        fetch(`/admin/users/${userId}/reset_password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            
+            if (data.success) {
+                // Mostra la password temporanea in un modal o alert più chiaro
+                showPasswordModal(data.temp_password);
+            } else {
+                alert('Errore: ' + data.message);
+            }
+        })
+        .catch(error => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            console.error('Errore:', error);
+            // Fallback: ricarica la pagina per mostrare i messaggi flash
+            location.reload();
+        });
     }
+}
+
+function showPasswordModal(tempPassword) {
+    // Crea un modal bootstrap per mostrare la password
+    const modalHtml = `
+        <div class="modal fade" id="passwordModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">🔑 Password Resettata</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Attenzione!</strong> Questa password è temporanea e deve essere comunicata all'utente.
+                        </div>
+                        <h4>Nuova Password Temporanea:</h4>
+                        <div class="bg-light p-3 rounded">
+                            <code class="fs-4 text-primary" id="tempPasswordDisplay">${tempPassword}</code>
+                            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyPassword()">
+                                📋 Copia
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            L'utente dovrà cambiare questa password al primo accesso.
+                        </small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ho Comunicato la Password</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Rimuovi modal esistente se presente
+    const existingModal = document.getElementById('passwordModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Aggiungi il nuovo modal
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Mostra il modal
+    const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
+    modal.show();
+    
+    // Rimuovi il modal dal DOM quando viene chiuso
+    document.getElementById('passwordModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function copyPassword() {
+    const passwordText = document.getElementById('tempPasswordDisplay').textContent;
+    navigator.clipboard.writeText(passwordText).then(function() {
+        // Cambia temporaneamente il testo del pulsante
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '✅ Copiato!';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Errore nel copiare la password: ', err);
+        alert('Errore nel copiare la password. Seleziona e copia manualmente.');
+    });
 }
 
 function toggleUserStatus(userId, activate) {

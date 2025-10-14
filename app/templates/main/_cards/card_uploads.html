@@ -1,0 +1,160 @@
+<!-- Card Upload Files -->
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-upload"></i>
+            Upload Files
+        </h5>
+        <span class="badge bg-light text-info">
+            {{ lab_uploads|length }} files
+        </span>
+    </div>
+    
+    <div class="card-body">
+        <!-- Statistiche Upload -->
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <div class="text-center p-2 bg-light rounded">
+                    <div class="fw-bold text-info">
+                        {% set my_uploads = lab_uploads|selectattr('uploaded_by', 'equalto', current_user.id)|list|length %}
+                        {{ my_uploads }}
+                    </div>
+                    <small class="text-muted">Miei Files</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="text-center p-2 bg-light rounded">
+                    <div class="fw-bold text-primary">
+                        {% set today_uploads = lab_uploads|selectattr('uploaded_at')|list|length %}
+                        {{ today_uploads }}
+                    </div>
+                    <small class="text-muted">Oggi</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Recenti -->
+        <h6 class="fw-bold mb-2">Upload Recenti</h6>
+        <div class="list-group list-group-flush">
+            {% if lab_uploads[:3] %}
+                {% for upload in lab_uploads[:3] %}
+                <div class="list-group-item px-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-file-alt text-info me-2"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">{{ upload.filename[:25] }}
+                                {% if upload.filename|length > 25 %}...{% endif %}
+                            </div>
+                            <small class="text-muted">
+                                by {{ upload.uploader.first_name }} {{ upload.uploader.last_name }}
+                                • {{ upload.uploaded_at.strftime('%d/%m %H:%M') }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            {% if upload.file_size %}
+                                <small class="text-muted d-block">
+                                    {{ "%.1f"|format(upload.file_size/1024) }} KB
+                                </small>
+                            {% endif %}
+                            <small class="badge bg-light text-dark">
+                                {{ upload.file_type or 'N/A' }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-cloud-upload-alt mb-2"></i>
+                    <p class="mb-0">Nessun file caricato</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card-footer bg-light">
+        <div class="d-grid gap-2">
+            {% if user_role.name in ['owner_lab', 'analyst'] %}
+                <button class="btn btn-info btn-sm" onclick="openUploadModal()">
+                    ⬆️ Carica Nuovo File
+                </button>
+            {% endif %}
+            <a href="#" class="btn btn-outline-info btn-sm">
+                📂 Visualizza Tutti
+            </a>
+            {% if lab_uploads|length > 0 %}
+                <a href="#" class="btn btn-outline-secondary btn-sm">
+                    📥 Download Batch
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Upload (da implementare) -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload"></i>
+                    Carica Nuovo File
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <input type="hidden" name="lab_id" value="{{ lab.id }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Seleziona File</label>
+                        <input type="file" class="form-control" name="file" required>
+                        <small class="text-muted">
+                            Formati supportati: .xlsx, .csv, .pdf, .txt (max 10MB)
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Descrizione (opzionale)</label>
+                        <textarea class="form-control" name="description" rows="2" 
+                                placeholder="Breve descrizione del file..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tipo File</label>
+                        <select class="form-select" name="file_type">
+                            <option value="">-- Seleziona Tipo --</option>
+                            <option value="results">Risultati Analisi</option>
+                            <option value="raw_data">Dati Grezzi</option>
+                            <option value="report">Report</option>
+                            <option value="certificate">Certificato</option>
+                            <option value="other">Altro</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Annulla
+                </button>
+                <button type="button" class="btn btn-info" onclick="submitUpload()">
+                    <i class="fas fa-upload"></i>
+                    Carica File
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openUploadModal() {
+    document.getElementById('uploadModal').style.display = 'block';
+    new bootstrap.Modal(document.getElementById('uploadModal')).show();
+}
+
+function submitUpload() {
+    // TODO: Implementare logica upload
+    console.log('Upload file per lab {{ lab.id }}');
+    alert('Funzionalità upload in sviluppo');
+}
+</script>

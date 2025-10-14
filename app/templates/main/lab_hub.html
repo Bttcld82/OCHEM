@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Hub Lab - {{ lab.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Lab Hub -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        Hub Lab {{ lab.code }}
+                    </li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-building text-primary"></i>
+                {{ lab.name }}
+            </h1>
+            <p class="text-muted mb-0">
+                <span class="badge bg-primary me-2">{{ user_role.name|upper }}</span>
+                {% if lab.city %}{{ lab.city }}{% endif %}
+                {% if lab.city and lab.address %} - {% endif %}
+                {% if lab.address %}{{ lab.address }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if user_role.name == 'owner_lab' %}
+                <a href="{{ url_for('admin_bp.lab_users', lab_id=lab.id) }}" class="btn btn-outline-primary btn-sm">
+                    👥 Gestisci Utenti
+                </a>
+            {% endif %}
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                ↩️ Torna alla Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Informazioni Lab Status -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="alert {% if lab.is_active %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center">
+                <i class="fas fa-info-circle me-2"></i>
+                <div>
+                    <strong>Stato Laboratorio:</strong>
+                    {% if lab.is_active %}
+                        ✅ Attivo e Operativo
+                    {% else %}
+                        ⚠️ Inattivo o in Manutenzione
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="alert alert-info d-flex align-items-center">
+                <i class="fas fa-user-tag me-2"></i>
+                <div>
+                    <strong>Il tuo accesso:</strong>
+                    {% if user_role.name == 'owner_lab' %}
+                        👑 Owner - Controllo Completo
+                    {% elif user_role.name == 'analyst' %}
+                        🔬 Analyst - Gestione Analisi
+                    {% elif user_role.name == 'viewer' %}
+                        👁️ Viewer - Solo Visualizzazione
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards Principali -->
+    <div class="row g-4">
+        <!-- Card Cicli PT -->
+        <div class="col-lg-4">
+            {% include "main/_cards/card_cycles.html" %}
+        </div>
+
+        <!-- Card Uploads -->
+        <div class="col-lg-4">
+            {% include "main/_cards/card_uploads.html" %}
+        </div>
+
+        <!-- Card QC Tools -->
+        <div class="col-lg-4">
+            {% include "main/_cards/card_qc.html" %}
+        </div>
+    </div>
+
+    <!-- Sezione Dettagli Estesi -->
+    <div class="row mt-4">
+        <!-- Statistiche Lab -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i>
+                        Statistiche Laboratorio
+                    </h5>
+                    <small class="text-muted">Ultimi 30 giorni</small>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-recycle fa-2x text-success mb-2"></i>
+                                <h4 class="mb-1">{{ lab_cycles|length }}</h4>
+                                <small class="text-muted">Cicli Totali</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-upload fa-2x text-info mb-2"></i>
+                                <h4 class="mb-1">{{ lab_uploads|length }}</h4>
+                                <small class="text-muted">Files Caricati</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                                <h4 class="mb-1">{{ lab_users|length }}</h4>
+                                <small class="text-muted">Utenti Attivi</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-check-circle fa-2x text-warning mb-2"></i>
+                                <h4 class="mb-1">
+                                    {% set completed = lab_cycles|selectattr('status', 'equalto', 'completed')|list|length %}
+                                    {{ completed }}
+                                </h4>
+                                <small class="text-muted">Cicli Completati</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Lab -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users"></i>
+                        Team Laboratorio
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if lab_users %}
+                        {% for user, role in lab_users %}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="avatar-circle me-3">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">{{ user.first_name }} {{ user.last_name }}</div>
+                                <small class="text-muted">
+                                    {% if role.name == 'owner_lab' %}
+                                        👑 Owner
+                                    {% elif role.name == 'analyst' %}
+                                        🔬 Analyst
+                                    {% elif role.name == 'viewer' %}
+                                        👁️ Viewer
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% if user.is_active %}
+                                <i class="fas fa-circle text-success" title="Online"></i>
+                            {% else %}
+                                <i class="fas fa-circle text-secondary" title="Offline"></i>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center mb-0">
+                            Nessun utente nel team
+                        </p>
+                    {% endif %}
+
+                    {% if user_role.name == 'owner_lab' %}
+                        <hr>
+                        <div class="d-grid">
+                            <a href="{{ url_for('admin_bp.lab_users', lab_id=lab.id) }}" class="btn btn-outline-primary btn-sm">
+                                👥 Gestisci Team
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Styles per avatar circle -->
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    background: #6c757d;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-refresh ogni 30 secondi per le statistiche
+        setTimeout(function() {
+            location.reload();
+        }, 30000);
+        
+        console.log('Hub Lab {{ lab.code }} caricato per utente {{ current_user.username }}');
+    });
+</script>
+{% endblock %}
