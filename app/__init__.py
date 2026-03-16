@@ -4,25 +4,28 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 from config import Config
 
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 def create_app() -> Flask:
     app = Flask(__name__, instance_relative_config=True)
 
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
-    
-    # Create upload folder if it doesn't exist
-    Path(app.config.get('UPLOAD_FOLDER', 'uploads')).mkdir(parents=True, exist_ok=True)
 
     # Load configuration from config.py
     app.config.from_object(Config)
 
+    # Create upload folder if it doesn't exist (after config is loaded)
+    Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
+
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
     
     # Configurazione Flask-Login
     login_manager.init_app(app)
@@ -42,6 +45,10 @@ def create_app() -> Flask:
     from .blueprints.stats import stats_bp, stats_general_bp
     app.register_blueprint(stats_bp)
     app.register_blueprint(stats_general_bp)
+    from .blueprints.help import help_bp
+    app.register_blueprint(help_bp)
+    from .blueprints.agent import agent_bp
+    app.register_blueprint(agent_bp, url_prefix="/agent")
 
 
     # Import modelli se presenti

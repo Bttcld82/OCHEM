@@ -247,7 +247,11 @@ def cycle_edit(cycle_id):
         db.session.commit()
         flash(f"Ciclo {cycle.code} aggiornato.", "success")
         return redirect(url_for("admin_bp.cycle_detail", cycle_id=cycle.id))
-    return render_template("cycle_form.html", form=form, cycle=cycle)
+    participations_count = LabParticipation.query.filter_by(cycle_code=cycle.code).count()
+    results_count = Result.query.filter_by(cycle_code=cycle.code).count()
+    return render_template("cycle_form.html", form=form, cycle=cycle,
+                           participations_count=participations_count,
+                           results_count=results_count)
 
 
 @admin_bp.route("/cycles/<int:cycle_id>/delete", methods=["POST"])

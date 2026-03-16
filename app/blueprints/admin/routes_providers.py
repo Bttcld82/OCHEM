@@ -1,7 +1,9 @@
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app import db
 from app.models import Provider
 from app.forms import ProviderForm
+from app.blueprints.auth.decorators import disclaimer_required, role_required
 from datetime import datetime
 from .routes_main import admin_bp
 
@@ -10,6 +12,9 @@ from .routes_main import admin_bp
 # ===========================
 
 @admin_bp.route("/providers")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def providers_list():
     """Lista fornitori"""
     q = request.args.get("q", "").strip()
@@ -23,6 +28,9 @@ def providers_list():
     return render_template("providers_list.html", providers=providers, q=q)
 
 @admin_bp.route("/providers/new", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def providers_new():
     """Creazione nuovo fornitore"""
     form = ProviderForm()
@@ -40,6 +48,9 @@ def providers_new():
     return render_template("providers_form.html", form=form, provider=None)
 
 @admin_bp.route("/providers/<int:provider_id>/edit", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def providers_edit(provider_id):
     """Modifica fornitore esistente"""
     provider = Provider.query.get_or_404(provider_id)
@@ -55,6 +66,9 @@ def providers_edit(provider_id):
     return render_template("providers_form.html", form=form, provider=provider)
 
 @admin_bp.route("/providers/<int:provider_id>/delete", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def providers_delete(provider_id):
     """Elimina fornitore"""
     provider = Provider.query.get_or_404(provider_id)

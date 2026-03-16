@@ -1,7 +1,7 @@
 ---
 id: PROP-003
 title: "Creazione template mancanti dashboard utente e lab hub"
-status: approved
+status: done
 priority: P1
 effort: M
 category: ux

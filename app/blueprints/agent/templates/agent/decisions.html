@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Log Decisioni – Agent WS – OCHEM{% endblock %}
+
+{% block content %}
+<div class="row">
+  <!-- Sidebar -->
+  <div class="col-md-3">
+    {% include "agent/_sidebar.html" %}
+  </div>
+
+  <!-- Contenuto -->
+  <div class="col-md-9">
+    <h1 class="h3 mb-3">Log Decisioni</h1>
+
+    <div class="help-content">
+      {{ content | safe }}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .help-content h1 { font-size: 1.6rem; border-bottom: 2px solid #dee2e6; padding-bottom: .4rem; margin-bottom: 1rem; }
+  .help-content h2 { font-size: 1.3rem; margin-top: 1.8rem; margin-bottom: .6rem; }
+  .help-content h3 { font-size: 1.1rem; margin-top: 1.4rem; }
+  .help-content pre { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: .375rem; padding: 1rem; overflow-x: auto; }
+  .help-content code { background: #f8f9fa; padding: .1em .3em; border-radius: .2rem; font-size: .9em; }
+  .help-content pre code { background: transparent; padding: 0; }
+  .help-content table { width: 100%; margin-bottom: 1rem; }
+  .help-content table th, .help-content table td { padding: .5rem .75rem; border: 1px solid #dee2e6; }
+  .help-content table th { background: #f8f9fa; font-weight: 600; }
+  .help-content blockquote { border-left: 4px solid #dee2e6; padding-left: 1rem; color: #6c757d; margin: 1rem 0; }
+  .help-content img { max-width: 100%; height: auto; }
+  .help-content a { color: #0d6efd; }
+</style>
+{% endblock %}

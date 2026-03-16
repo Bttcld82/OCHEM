@@ -1,7 +1,7 @@
 ---
 id: PROP-004
 title: "Flusso completo di approvazione richiesta registrazione con creazione utente"
-status: approved
+status: done
 priority: P1
 effort: L
 category: admin

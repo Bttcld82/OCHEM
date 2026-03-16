@@ -1,7 +1,7 @@
 ---
 id: PROP-002
 title: "Ricalcolo consistente di PtStats (mean_z e rsz) dopo ogni modifica risultato"
-status: approved
+status: done
 priority: P1
 effort: M
 category: statistics

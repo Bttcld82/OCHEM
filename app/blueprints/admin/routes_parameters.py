@@ -1,7 +1,9 @@
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app import db
 from app.models import Parameter, Unit, Technique, CycleParameter, Result, Cycle
 from app.forms import ParameterForm, UnitForm, TechniqueForm, SearchForm
+from app.blueprints.auth.decorators import disclaimer_required, role_required
 from datetime import datetime
 from .routes_main import admin_bp
 
@@ -10,6 +12,9 @@ from .routes_main import admin_bp
 # ===========================
 
 @admin_bp.route("/parameters")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def parameters_list():
     """Lista parametri"""
     q = request.args.get("q", "").strip()
@@ -34,6 +39,9 @@ def parameters_list():
                          active_cycles=active_cycles)
 
 @admin_bp.route("/parameters/new", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def parameters_new():
     """Creazione nuovo parametro"""
     form = ParameterForm()
@@ -62,6 +70,9 @@ def parameters_new():
     return render_template("params_form.html", form=form, parameter=None, units=units, techniques=techniques)
 
 @admin_bp.route("/parameters/<int:parameter_id>/edit", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def parameters_edit(parameter_id):
     """Modifica parâmetro existente"""
     parameter = Parameter.query.get_or_404(parameter_id)
@@ -80,6 +91,9 @@ def parameters_edit(parameter_id):
     return render_template("params_form.html", form=form, parameter=parameter, units=units, techniques=techniques)
 
 @admin_bp.route("/parameters/<int:parameter_id>/delete", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def parameters_delete(parameter_id):
     """Elimina parametro"""
     parameter = Parameter.query.get_or_404(parameter_id)

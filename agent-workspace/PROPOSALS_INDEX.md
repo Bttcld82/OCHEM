@@ -3,8 +3,8 @@ _Aggiornato automaticamente da idea-proposer e proposal-coordinator_
 _Ultima modifica: 2026-03-16_
 
 ## Contatori
-- Totale proposte: 8
-- Proposed: 0 | Approved: 6 | Rejected: 2 | In Progress: 0 | Done: 0
+- Totale proposte: 10
+- Proposed: 1 | Approved: 7 | Rejected: 2 | In Progress: 0 | Done: 0
 
 ## P1 — Critici
 _Senza queste funzionalità un ciclo PT non può concludersi_
@@ -16,6 +16,7 @@ _Senza queste funzionalità un ciclo PT non può concludersi_
 | PROP-003 | Creazione template mancanti dashboard utente e lab hub | approved | M | ux | GAP-C03 | 2026-03-16 |
 | PROP-004 | Flusso completo di approvazione richiesta registrazione con creazione utente | approved | L | admin | GAP-C04 | 2026-03-16 |
 | PROP-006 | Correzione bug cycle_code nullable in UploadFile durante upload CSV | rejected | S | workflow | GAP-C06 | 2026-03-16 |
+| PROP-009 | Fix HTTP 500 su POST /admin/cycles/new: coerce provider_id e variabili mancanti nel template | approved | S | admin | — | 2026-03-16 |
 
 ## P2 — Importanti
 _Funzionalità presente ma incompleta, degrada correttezza o esperienza_
@@ -31,7 +32,7 @@ _Migliorano usabilità/automazione ma non bloccano il PT_
 
 | ID | Titolo | Stato | Effort | Categoria | Gap Refs | Data |
 |---|---|---|---|---|---|---|
-| _(nessuna)_ | | | | | | |
+| PROP-010 | Kanban orizzontale e timeline storico nel blueprint agent | proposed | S | ux | — | 2026-03-16 |
 
 ---
 
@@ -41,6 +42,8 @@ PROP-006 → superata da PROP-001 (entrambe rifiutate: upload CSV fuori scope MV
 PROP-001 → bloccava PROP-007 (rifiutata: upload CSV fuori scope MVP)
 PROP-002 → blocca PROP-007 (PtStats deve essere consistente) e PROP-008
 PROP-008 → dipende da PROP-002
+PROP-009 → nessuna dipendenza; sblocca l'intero flusso creazione cicli
+PROP-010 → nessuna dipendenza
 ```
 
 ## Gap identificati dall'analisi codebase (2026-03-16)

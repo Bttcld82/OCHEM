@@ -22,5 +22,12 @@ def db_init():
         upgrade()
     click.echo("Database inizializzato.")
 
+@cli.command("run")
+@click.option('--host', default='127.0.0.1', help='Host su cui ascoltare')
+@click.option('--port', default=5000, help='Porta')
+def run_dev(host, port):
+    """Avvia il server di sviluppo con debug e reloader."""
+    app.run(host=host, port=port, debug=True, use_reloader=True)
+
 if __name__ == "__main__":
     cli()

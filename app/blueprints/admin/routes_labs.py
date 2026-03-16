@@ -1,7 +1,9 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required
 from app import db
 from app.models import Lab, LabParticipation, Result, User, Role, UserLabRole
 from app.services.roles import RoleService, RoleManagementError
+from app.blueprints.auth.decorators import disclaimer_required, role_required
 from datetime import datetime
 from .routes_main import admin_bp
 
@@ -10,6 +12,9 @@ from .routes_main import admin_bp
 # ===========================
 
 @admin_bp.route("/labs")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def labs_list():
     """Lista laboratori"""
     q = request.args.get("q", "").strip()
@@ -34,6 +39,9 @@ def labs_list():
                          total_participations=total_participations)
 
 @admin_bp.route("/labs/new", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def labs_new():
     """Creazione nuovo laboratorio"""
     if request.method == "POST":
@@ -66,6 +74,9 @@ def labs_new():
     return render_template("labs_form.html", lab=None)
 
 @admin_bp.route("/labs/<int:lab_id>/edit", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def labs_edit(lab_id):
     """Modifica laboratorio esistente"""
     lab = Lab.query.get_or_404(lab_id)
@@ -98,6 +109,9 @@ def labs_edit(lab_id):
     return render_template("labs_form.html", lab=lab)
 
 @admin_bp.route("/labs/<int:lab_id>/delete", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def labs_delete(lab_id):
     """Elimina laboratorio"""
     lab = Lab.query.get_or_404(lab_id)
@@ -116,6 +130,9 @@ def labs_delete(lab_id):
     return redirect(url_for("admin_bp.labs_list"))
 
 @admin_bp.route("/labs/<int:lab_id>/toggle_active", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def lab_toggle_active(lab_id):
     """Attiva/disattiva laboratorio"""
     lab = Lab.query.get_or_404(lab_id)
@@ -132,6 +149,9 @@ def lab_toggle_active(lab_id):
 # ===========================
 
 @admin_bp.route("/labs/<int:lab_id>/users")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def lab_users(lab_id):
     """Lista utenti di un laboratorio"""
     lab = Lab.query.get_or_404(lab_id)
@@ -148,6 +168,9 @@ def lab_users(lab_id):
                          lab_roles=lab_roles)
 
 @admin_bp.route("/labs/<int:lab_id>/users/add-existing", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def add_existing_user_to_lab(lab_id):
     """Aggiungi utente esistente a un laboratorio"""
     try:
@@ -169,6 +192,9 @@ def add_existing_user_to_lab(lab_id):
     return redirect(url_for("admin_bp.lab_users", lab_id=lab_id))
 
 @admin_bp.route("/labs/<int:lab_id>/users/<int:user_id>/update-role", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def update_lab_user_role(lab_id, user_id):
     """Cambia il ruolo di un utente nel laboratorio"""
     try:
@@ -191,6 +217,9 @@ def update_lab_user_role(lab_id, user_id):
     return redirect(url_for("admin_bp.lab_users", lab_id=lab_id))
 
 @admin_bp.route("/labs/<int:lab_id>/users/<int:user_id>/remove", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def remove_lab_user(lab_id, user_id):
     """Rimuove un utente dal laboratorio"""
     try:

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{{ prop_id }} – Agent WS – OCHEM{% endblock %}
+
+{% block content %}
+<div class="row">
+  <!-- Sidebar -->
+  <div class="col-md-3">
+    {% include "agent/_sidebar.html" %}
+  </div>
+
+  <!-- Dettaglio proposta -->
+  <div class="col-md-9">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin_bp.dashboard') }}">Admin</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('agent.index') }}">Agent WS</a></li>
+        <li class="breadcrumb-item active">{{ prop_id }}</li>
+      </ol>
+    </nav>
+
+    <!-- Header card -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h1 class="h4 mb-2">{{ meta.get('title', prop_id) }}</h1>
+        <div class="d-flex flex-wrap gap-2">
+          {% set s = meta.get('status', 'proposed') %}
+          <span class="badge
+            {% if s == 'approved' %}bg-success
+            {% elif s == 'rejected' %}bg-danger
+            {% elif s == 'in_progress' %}bg-info
+            {% elif s == 'done' %}bg-secondary
+            {% else %}bg-warning text-dark{% endif %}">
+            {{ s }}
+          </span>
+          {% if meta.get('priority') %}
+          <span class="badge bg-dark">{{ meta.priority }}</span>
+          {% endif %}
+          {% if meta.get('effort') %}
+          <span class="badge bg-light text-dark border">effort: {{ meta.effort }}</span>
+          {% endif %}
+          {% if meta.get('category') %}
+          <span class="badge bg-secondary">{{ meta.category }}</span>
+          {% endif %}
+          {% if meta.get('created_at') %}
+          <span class="badge bg-light text-muted border">{{ meta.created_at }}</span>
+          {% endif %}
+        </div>
+
+        {% if meta.get('decision_notes') and meta.decision_notes != 'non specificata' %}
+        <div class="alert alert-info mt-3 mb-0 py-2">
+          <strong>Note decisione:</strong> {{ meta.decision_notes }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Corpo Markdown -->
+    <div class="help-content">
+      {{ content | safe }}
+    </div>
+
+    <!-- Storico / Timeline -->
+    <div class="mt-4 pt-3 border-top">
+      <h5 class="mb-3">Storico</h5>
+      <div style="border-left: 3px solid #dee2e6; padding-left: 1.2rem;">
+
+        <!-- Evento 1: creazione (sempre presente) -->
+        <div class="mb-3 position-relative">
+          <span style="position:absolute; left:-1.45rem; top:.2rem; width:1rem; height:1rem; background:#0d6efd; border-radius:50%; display:inline-block;"></span>
+          <div class="small text-muted mb-1">{{ meta.get('created_at', '—') }}</div>
+          <div>
+            Proposta creata
+            {% if meta.get('origin') %}
+            da <span class="badge {% if meta.origin == 'user' %}bg-info{% else %}bg-secondary{% endif %}">
+              {{ meta.origin }}
+            </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Evento 2: decisione (se presente) -->
+        {% if meta.get('decision') %}
+        <div class="mb-3 position-relative">
+          {% set d = meta.decision %}
+          <span style="position:absolute; left:-1.45rem; top:.2rem; width:1rem; height:1rem;
+            background:{% if d == 'approved' %}#198754{% elif d == 'rejected' %}#dc3545{% else %}#6c757d{% endif %};
+            border-radius:50%; display:inline-block;"></span>
+          <div class="small text-muted mb-1">{{ meta.get('updated_at', '—') }}</div>
+          <div>
+            Decisione:
+            <span class="badge {% if d == 'approved' %}bg-success{% elif d == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
+              {{ d }}
+            </span>
+            {% if meta.get('decision_notes') and meta.decision_notes != 'non specificata' %}
+            <span class="text-muted small ms-1">— {{ meta.decision_notes }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Evento 3: piano generato (se plan_file valorizzato) -->
+        {% if meta.get('plan_file') %}
+        <div class="mb-3 position-relative">
+          <span style="position:absolute; left:-1.45rem; top:.2rem; width:1rem; height:1rem; background:#fd7e14; border-radius:50%; display:inline-block;"></span>
+          <div class="small text-muted mb-1">{{ meta.get('updated_at', '—') }}</div>
+          <div>
+            Piano di implementazione generato:
+            <code class="small">{{ meta.plan_file }}</code>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-4 pt-3 border-top">
+      <a href="{{ url_for('agent.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fa fa-arrow-left me-1"></i> Torna all'indice
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .help-content h1 { font-size: 1.6rem; border-bottom: 2px solid #dee2e6; padding-bottom: .4rem; margin-bottom: 1rem; }
+  .help-content h2 { font-size: 1.3rem; margin-top: 1.8rem; margin-bottom: .6rem; }
+  .help-content h3 { font-size: 1.1rem; margin-top: 1.4rem; }
+  .help-content pre { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: .375rem; padding: 1rem; overflow-x: auto; }
+  .help-content code { background: #f8f9fa; padding: .1em .3em; border-radius: .2rem; font-size: .9em; }
+  .help-content pre code { background: transparent; padding: 0; }
+  .help-content table { width: 100%; margin-bottom: 1rem; }
+  .help-content table th, .help-content table td { padding: .5rem .75rem; border: 1px solid #dee2e6; }
+  .help-content table th { background: #f8f9fa; font-weight: 600; }
+  .help-content blockquote { border-left: 4px solid #dee2e6; padding-left: 1rem; color: #6c757d; margin: 1rem 0; }
+  .help-content img { max-width: 100%; height: auto; }
+  .help-content a { color: #0d6efd; }
+  .help-content .mermaid { background: transparent; border: none; padding: 0; text-align: center; }
+</style>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: false, theme: 'default' });
+  document.querySelectorAll('pre code.language-mermaid').forEach(function(code) {
+    const div = document.createElement('div');
+    div.className = 'mermaid';
+    div.textContent = code.textContent;
+    code.parentElement.replaceWith(div);
+  });
+  await mermaid.run();
+</script>
+{% endblock %}

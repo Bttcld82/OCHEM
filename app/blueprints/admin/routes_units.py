@@ -1,7 +1,9 @@
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app import db
 from app.models import Unit, Parameter
 from app.forms import UnitForm
+from app.blueprints.auth.decorators import disclaimer_required, role_required
 from datetime import datetime
 from .routes_main import admin_bp
 
@@ -10,6 +12,9 @@ from .routes_main import admin_bp
 # ===========================
 
 @admin_bp.route("/units")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def units_list():
     """Lista unità di misura"""
     q = request.args.get("q", "").strip()
@@ -23,6 +28,9 @@ def units_list():
     return render_template("units_list.html", units=units, q=q)
 
 @admin_bp.route("/units/new", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def units_new():
     """Creazione nuova unità di misura"""
     form = UnitForm()
@@ -40,6 +48,9 @@ def units_new():
     return render_template("units_form.html", form=form, unit=None)
 
 @admin_bp.route("/units/<int:unit_id>/edit", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def units_edit(unit_id):
     """Modifica unità di misura esistente"""
     unit = Unit.query.get_or_404(unit_id)
@@ -59,6 +70,9 @@ def units_edit(unit_id):
     return render_template("units_form.html", form=form, unit=unit)
 
 @admin_bp.route("/units/<int:unit_id>/delete", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def units_delete(unit_id):
     """Elimina unità di misura"""
     unit = Unit.query.get_or_404(unit_id)

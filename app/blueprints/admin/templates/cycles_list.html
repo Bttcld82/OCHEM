@@ -20,6 +20,9 @@
             <a href="{{ url_for('admin_bp.cycles_pending') }}" class="btn btn-warning btn-sm">
                 <i class="fas fa-clock"></i> In Revisione
             </a>
+            <a href="{{ url_for('admin_bp.cycle_create') }}" class="btn btn-success btn-sm">
+                <i class="fas fa-plus"></i> Nuovo Ciclo
+            </a>
         </div>
     </div>
 
@@ -132,28 +135,28 @@
     </div>
 
     <!-- Tabella Cicli -->
+    <form method="POST" action="{{ url_for('admin_bp.cycles_bulk_assign_provider') }}" id="bulkForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">
-                <i class="fas fa-table"></i> 
-                Cicli Trovati: {{ cycles_data|length }}
-            </h6>
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="fas fa-tools"></i> Azioni
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="bulkAction('publish')">
-                        <i class="fas fa-check text-success"></i> Pubblica Selezionati
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="bulkAction('reject')">
-                        <i class="fas fa-times text-danger"></i> Rigetta Selezionati
-                    </a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" onclick="exportCycles()">
-                        <i class="fas fa-download text-primary"></i> Esporta CSV
-                    </a></li>
-                </ul>
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-table"></i>
+                    Cicli Trovati: {{ cycles_data|length }}
+                </h6>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <small class="text-muted" id="selectedCount">0 selezionati</small>
+                    <select name="bulk_provider_id" class="form-select form-select-sm" style="width:auto;" id="bulkProviderSelect">
+                        <option value="">— Nessun provider —</option>
+                        {% for provider in providers %}
+                        <option value="{{ provider.id }}">{{ provider.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm" id="bulkAssignBtn" disabled
+                            onclick="return confirmBulkAssign()">
+                        <i class="fas fa-link"></i> Assegna Provider
+                    </button>
+                </div>
             </div>
         </div>
         <div class="card-body p-0">
@@ -179,15 +182,19 @@
                         {% set cycle = cycle_data.cycle %}
                         <tr class="{% if cycle.status == 'pending_review' %}table-warning{% elif cycle.status == 'published' %}table-success{% elif cycle.status == 'rejected' %}table-danger{% endif %}">
                             <td>
-                                <input type="checkbox" class="form-check-input cycle-checkbox" 
-                                       value="{{ cycle.id }}" data-status="{{ cycle.status }}">
+                                <input type="checkbox" class="form-check-input cycle-checkbox"
+                                       name="cycle_ids" value="{{ cycle.id }}" data-status="{{ cycle.status }}">
                             </td>
                             <td>
                                 <div class="fw-bold">{{ cycle.code }}</div>
                                 <small class="text-muted">ID: {{ cycle.id }}</small>
                             </td>
                             <td>
-                                <span class="text-muted">N/D</span>
+                                {% if cycle.provider %}
+                                    {{ cycle.provider.name }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
                             </td>
                             <td>
                                 <div>{{ cycle.created_at.strftime('%d/%m/%Y') }}</div>
@@ -220,17 +227,14 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    {% if cycle.status == 'pending_review' %}
-                                    <a href="{{ url_for('admin_bp.cycle_review', cycle_id=cycle.id) }}" 
-                                       class="btn btn-primary" title="Rivedi Ciclo">
+                                    <a href="{{ url_for('admin_bp.cycle_detail', cycle_id=cycle.id) }}"
+                                       class="btn btn-primary" title="Gestisci Ciclo">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    {% else %}
-                                    <a href="#" class="btn btn-outline-secondary" 
-                                       onclick="viewCycleDetails({{ cycle.id }})" title="Visualizza Dettagli">
-                                        <i class="fas fa-info-circle"></i>
+                                    <a href="{{ url_for('admin_bp.cycle_edit', cycle_id=cycle.id) }}"
+                                       class="btn btn-outline-secondary" title="Modifica">
+                                        <i class="fas fa-edit"></i>
                                     </a>
-                                    {% endif %}
                                     
                                     <!-- Cambio Stato Rapido -->
                                     {% if cycle.status != 'published' %}
@@ -243,6 +247,7 @@
                                             {% if cycle.status != 'draft' %}
                                             <li>
                                                 <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="new_status" value="draft">
                                                     <button type="submit" class="dropdown-item">
                                                         <i class="fas fa-edit text-secondary"></i> Torna a Bozza
@@ -253,6 +258,7 @@
                                             {% if cycle.status != 'pending_review' %}
                                             <li>
                                                 <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="new_status" value="pending_review">
                                                     <button type="submit" class="dropdown-item">
                                                         <i class="fas fa-clock text-warning"></i> Invia in Revisione
@@ -263,6 +269,7 @@
                                             {% if cycle.status != 'published' %}
                                             <li>
                                                 <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="new_status" value="published">
                                                     <button type="submit" class="dropdown-item" 
                                                             onclick="return confirm('Pubblicare il ciclo {{ cycle.code }}?')">
@@ -274,6 +281,7 @@
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="new_status" value="rejected">
                                                     <button type="submit" class="dropdown-item text-danger" 
                                                             onclick="return confirm('Rigettare il ciclo {{ cycle.code }}?')">
@@ -309,6 +317,7 @@
             {% endif %}
         </div>
     </div>
+    </form><!-- /bulkForm -->
 
     <!-- Legenda Stati -->
     {% if cycles_data %}
@@ -352,40 +361,27 @@
 
 {% block scripts %}
 <script>
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.cycle-checkbox:checked');
+        const count = selected.length;
+        document.getElementById('selectedCount').textContent = count + ' selezionati';
+        document.getElementById('bulkAssignBtn').disabled = count === 0;
+    }
+
     // Select all checkbox
     document.getElementById('selectAll').addEventListener('change', function() {
-        const checkboxes = document.querySelectorAll('.cycle-checkbox');
-        checkboxes.forEach(cb => cb.checked = this.checked);
+        document.querySelectorAll('.cycle-checkbox').forEach(cb => cb.checked = this.checked);
+        updateSelectedCount();
     });
 
-    // Bulk actions
-    function bulkAction(action) {
-        const selected = Array.from(document.querySelectorAll('.cycle-checkbox:checked'));
-        if (selected.length === 0) {
-            alert('Seleziona almeno un ciclo per continuare.');
-            return;
-        }
+    document.querySelectorAll('.cycle-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
 
-        const ids = selected.map(cb => cb.value);
-        const actionText = action === 'publish' ? 'pubblicare' : 'rigettare';
-        
-        if (confirm(`Confermi di voler ${actionText} ${selected.length} cicli selezionati?`)) {
-            // Implementare chiamata AJAX per azione bulk
-            alert(`Funzione bulk ${action} in sviluppo`);
-        }
-    }
-
-    // Export cycles
-    function exportCycles() {
-        const filters = new URLSearchParams(window.location.search);
-        const exportUrl = '{{ url_for("admin_bp.cycles_list") }}?' + filters.toString() + '&export=csv';
-        window.open(exportUrl, '_blank');
-    }
-
-    // View cycle details
-    function viewCycleDetails(cycleId) {
-        // Implementare modal o redirect per dettagli
-        window.location.href = `{{ url_for('admin_bp.cycle_review', cycle_id=0) }}`.replace('0', cycleId);
+    function confirmBulkAssign() {
+        const selected = document.querySelectorAll('.cycle-checkbox:checked');
+        const providerName = document.getElementById('bulkProviderSelect').selectedOptions[0].text;
+        return confirm(`Assegnare il provider "${providerName}" a ${selected.length} cicli selezionati?`);
     }
 </script>
 {% endblock %}

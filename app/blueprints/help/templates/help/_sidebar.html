@@ -1,0 +1,48 @@
+<div class="card mb-3 sticky-top" style="top: 1rem;">
+  <div class="card-header bg-dark text-white py-2">
+    <a href="{{ url_for('help.index') }}" class="text-white text-decoration-none">
+      <i class="fa fa-book me-1"></i> Guida OCHEM
+    </a>
+  </div>
+  <div class="card-body p-2">
+
+    {% if current_user.is_admin %}
+    <p class="text-uppercase text-muted small fw-bold mb-1 mt-2 px-2">Amministratore</p>
+    <ul class="nav flex-column nav-pills mb-2">
+      {% for item in sidebar.admin %}
+      <li class="nav-item">
+        <a href="{{ url_for('help.article', slug=item.slug) }}"
+           class="nav-link py-1 px-2 {% if current_slug is defined and current_slug == item.slug %}active{% else %}text-dark{% endif %}">
+          {{ item.title }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    <hr class="my-1">
+    {% endif %}
+
+    <p class="text-uppercase text-muted small fw-bold mb-1 mt-2 px-2">Utente</p>
+    <ul class="nav flex-column nav-pills">
+      {% for item in sidebar.user %}
+      <li class="nav-item">
+        <a href="{{ url_for('help.article', slug=item.slug) }}"
+           class="nav-link py-1 px-2 {% if current_slug is defined and current_slug == item.slug %}active{% else %}text-dark{% endif %}">
+          {{ item.title }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <hr class="my-1">
+    <p class="text-uppercase text-muted small fw-bold mb-1 mt-2 px-2">Manuale Utente</p>
+    <ul class="nav flex-column nav-pills mb-1">
+      <li class="nav-item">
+        <a href="{{ url_for('help.article', slug='manuale-utente/HOME') }}"
+           class="nav-link py-1 px-2 {% if current_slug is defined and current_slug == 'manuale-utente/HOME' %}active{% else %}text-dark{% endif %}">
+          📖 Indice del Manuale
+        </a>
+      </li>
+    </ul>
+
+  </div>
+</div>

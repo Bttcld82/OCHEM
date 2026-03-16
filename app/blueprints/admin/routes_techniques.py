@@ -1,7 +1,9 @@
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app import db
 from app.models import Technique, Parameter
 from app.forms import TechniqueForm
+from app.blueprints.auth.decorators import disclaimer_required, role_required
 from datetime import datetime
 from .routes_main import admin_bp
 
@@ -10,6 +12,9 @@ from .routes_main import admin_bp
 # ===========================
 
 @admin_bp.route("/techniques")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def techniques_list():
     """Lista tecniche analitiche"""
     q = request.args.get("q", "").strip()
@@ -23,6 +28,9 @@ def techniques_list():
     return render_template("techniques_list.html", techniques=techniques, q=q)
 
 @admin_bp.route("/techniques/new", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def techniques_new():
     """Creazione nuova tecnica analitica"""
     form = TechniqueForm()
@@ -40,6 +48,9 @@ def techniques_new():
     return render_template("techniques_form.html", form=form, technique=None)
 
 @admin_bp.route("/techniques/<int:technique_id>/edit", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def techniques_edit(technique_id):
     """Modifica tecnica analitica esistente"""
     technique = Technique.query.get_or_404(technique_id)
@@ -55,6 +66,9 @@ def techniques_edit(technique_id):
     return render_template("techniques_form.html", form=form, technique=technique)
 
 @admin_bp.route("/techniques/<int:technique_id>/delete", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def techniques_delete(technique_id):
     """Elimina tecnica analitica"""
     technique = Technique.query.get_or_404(technique_id)

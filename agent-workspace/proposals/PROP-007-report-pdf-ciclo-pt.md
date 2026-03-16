@@ -1,7 +1,7 @@
 ---
 id: PROP-007
 title: "Report PDF riepilogativo per ciclo PT con z-score per laboratorio"
-status: approved
+status: done
 priority: P2
 effort: XL
 category: reporting

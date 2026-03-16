@@ -11,3 +11,5 @@ from . import routes_techniques  # Gestione tecniche analitiche  # noqa
 from . import routes_providers  # Gestione fornitori  # noqa
 from . import routes_users     # Gestione utenti e ruoli  # noqa
 from . import routes_docs      # Gestione documentazione  # noqa
+from . import routes_registrations  # Gestione registrazioni  # noqa
+from . import routes_matrices       # Gestione matrici  # noqa

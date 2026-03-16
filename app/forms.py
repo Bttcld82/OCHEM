@@ -1,5 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, BooleanField, FloatField, IntegerField, SubmitField, SelectMultipleField
+from flask_wtf.file import FileField, FileRequired, FileAllowed
+from wtforms import StringField, TextAreaField, SelectField, BooleanField, FloatField, IntegerField, SubmitField, SelectMultipleField, DecimalField
+from wtforms.fields import DateField
 from wtforms.validators import DataRequired, Length, Optional, NumberRange, ValidationError
 from app.models import Unit, Technique, Lab, User, Parameter, Provider, Result, Cycle
 
@@ -90,26 +92,122 @@ class LabForm(FlaskForm):
 
 
 class CycleForm(FlaskForm):
-    code = StringField('Código do Ciclo', validators=[DataRequired(), Length(min=1, max=20)])
-    description = TextAreaField('Descrição', validators=[Optional(), Length(max=255)])
-    coordinator_id = SelectField('Coordenador', validators=[DataRequired()], coerce=int)
-    lab_code = SelectField('Laboratório', validators=[DataRequired()], coerce=str)
-    active = BooleanField('Ativo', default=True)
-    submit = SubmitField('Salvar')
+    code = StringField('Codice Ciclo', validators=[DataRequired(), Length(min=1, max=20)])
+    name = StringField('Nome Ciclo', validators=[DataRequired(), Length(min=1, max=200)])
+    status = SelectField('Stato', validators=[DataRequired()], choices=[
+        ('draft', 'Bozza'),
+        ('pending_review', 'In revisione'),
+        ('published', 'Pubblicato'),
+        ('changes_requested', 'Modifiche richieste'),
+        ('rejected', 'Rigettato'),
+    ], default='draft')
+    provider_id = SelectField('Fornitore', validators=[Optional()], coerce=lambda x: int(x) if x and str(x) != '0' else None)
+    start_date = DateField('Data Inizio', validators=[Optional()], format='%Y-%m-%d')
+    end_date = DateField('Data Fine', validators=[Optional()], format='%Y-%m-%d')
+    submit = SubmitField('Salva')
 
     def __init__(self, original_code=None, *args, **kwargs):
         super(CycleForm, self).__init__(*args, **kwargs)
         self.original_code = original_code
-        # Populate choices for select fields
-        self.coordinator_id.choices = [('', 'Selecione um coordenador')] + [(u.id, f"{u.name} ({u.email})") for u in User.query.filter_by(active=True).all()]
-        self.lab_code.choices = [('', 'Selecione um laboratório')] + [(lab.code, f"{lab.code} - {lab.name}") for lab in Lab.query.filter_by(active=True).all()]
+        self.provider_id.choices = [(0, '— Nessun fornitore —')] + [(p.id, f"{p.code} - {p.name}") for p in Provider.query.all()]
 
     def validate_code(self, field):
         if field.data != self.original_code:
-            from app.models import Cycle
             cycle = Cycle.query.filter_by(code=field.data).first()
             if cycle:
-                raise ValidationError('Este código de ciclo já existe.')
+                raise ValidationError('Questo codice ciclo esiste già.')
+
+    def validate_end_date(self, field):
+        if field.data and self.start_date.data:
+            if field.data < self.start_date.data:
+                raise ValidationError('La data fine deve essere uguale o successiva alla data inizio.')
+
+
+class CycleParameterForm(FlaskForm):
+    parameter_code = SelectField('Parametro', validators=[DataRequired()], coerce=str)
+    xpt = DecimalField('XPT (valore assegnato)', validators=[DataRequired()], places=6)
+    sigma_pt = DecimalField('Sigma PT', validators=[DataRequired(), NumberRange(min=0.000001, message='Sigma PT deve essere > 0')], places=6)
+    submit = SubmitField('Aggiungi Parametro')
+
+    def __init__(self, *args, **kwargs):
+        super(CycleParameterForm, self).__init__(*args, **kwargs)
+        self.parameter_code.choices = [('', '— Seleziona parametro —')] + [
+            (p.code, f"{p.code} - {p.name}") for p in Parameter.query.filter_by(active=True).order_by(Parameter.code).all()
+        ]
+
+
+class LabParticipationForm(FlaskForm):
+    lab_code = SelectField('Laboratorio', validators=[DataRequired()], coerce=str)
+    status = SelectField('Stato', choices=[('active', 'Attivo'), ('withdrawn', 'Ritirato')], default='active')
+    submit = SubmitField('Aggiungi Laboratorio')
+
+    def __init__(self, *args, **kwargs):
+        super(LabParticipationForm, self).__init__(*args, **kwargs)
+        self.lab_code.choices = [('', '— Seleziona laboratorio —')] + [
+            (l.code, f"{l.code} - {l.name}") for l in Lab.query.filter_by(is_active=True).order_by(Lab.code).all()
+        ]
+
+
+class DocUploadForm(FlaskForm):
+    doc_file = FileField('Documento', validators=[FileRequired(), FileAllowed(['pdf', 'doc', 'docx', 'xlsx', 'csv'], 'Solo PDF, Word, Excel o CSV')])
+    doc_type = SelectField('Tipo Documento', choices=[
+        ('istruzioni', 'Istruzioni'),
+        ('report', 'Report'),
+        ('dati', 'Dati'),
+        ('altro', 'Altro'),
+    ], default='istruzioni')
+    submit = SubmitField('Carica Documento')
+
+
+class MatrixForm(FlaskForm):
+    code = StringField('Codice Matrice', validators=[DataRequired(), Length(min=1, max=20)])
+    description = StringField('Descrizione', validators=[DataRequired(), Length(min=1, max=200)])
+    submit = SubmitField('Salva')
+
+    def __init__(self, original_code=None, *args, **kwargs):
+        super(MatrixForm, self).__init__(*args, **kwargs)
+        self.original_code = original_code
+
+    def validate_code(self, field):
+        if field.data != self.original_code:
+            from app.models import Matrix
+            matrix = Matrix.query.filter_by(code=field.data).first()
+            if matrix:
+                raise ValidationError('Questo codice matrice esiste già.')
+
+
+class ManualResultForm(FlaskForm):
+    cycle_code = SelectField('Ciclo PT', validators=[DataRequired()], coerce=str)
+    parameter_code = SelectField('Parametro', validators=[DataRequired()], coerce=str)
+    technique_code = SelectField('Tecnica Analitica', validators=[Optional()], coerce=str)
+    measured_value = DecimalField('Valore Misurato', validators=[DataRequired()], places=6)
+    uncertainty = DecimalField('Incertezza (opzionale)', validators=[Optional()], places=6)
+    notes = TextAreaField('Note', validators=[Optional(), Length(max=500)])
+    submit = SubmitField('Inserisci Risultato')
+
+    def __init__(self, lab_code=None, cycle_code=None, *args, **kwargs):
+        super(ManualResultForm, self).__init__(*args, **kwargs)
+        from app.models import LabParticipation, CycleParameter
+        # Cicli pubblicati con partecipazione attiva del lab
+        if lab_code:
+            participations = LabParticipation.query.filter_by(lab_code=lab_code, status='active').all()
+            cycle_codes = [p.cycle_code for p in participations]
+            cycles = Cycle.query.filter(Cycle.code.in_(cycle_codes), Cycle.status == 'published').order_by(Cycle.code).all()
+        else:
+            cycles = Cycle.query.filter_by(status='published').order_by(Cycle.code).all()
+        self.cycle_code.choices = [('', '— Seleziona ciclo —')] + [(c.code, f"{c.code} - {c.name}") for c in cycles]
+        # Parametri del ciclo selezionato
+        if cycle_code:
+            cps = CycleParameter.query.filter_by(cycle_code=cycle_code).all()
+            self.parameter_code.choices = [('', '— Seleziona parametro —')] + [
+                (cp.parameter_code, f"{cp.parameter_code} - {cp.parameter.name if cp.parameter else cp.parameter_code}") for cp in cps
+            ]
+        else:
+            self.parameter_code.choices = [('', '— Seleziona prima il ciclo —')]
+        # Tecniche
+        self.technique_code.choices = [('', '— Nessuna —')] + [
+            (t.code, f"{t.code} - {t.name}") for t in Technique.query.order_by(Technique.code).all()
+        ]
 
 
 class UserForm(FlaskForm):

@@ -20,9 +20,15 @@
             <a class="btn btn-outline-light me-2" href="{{ url_for('admin_bp.dashboard') }}">
               🔧 Admin
             </a>
+            <a class="btn btn-outline-light me-2" href="{{ url_for('agent.index') }}">
+              🤖 Agent WS
+            </a>
           {% endif %}
-          <a class="btn btn-outline-light me-2" href="{{ url_for('dati.upload_index') }}">
+          <a class="btn btn-outline-light me-2" href="{{ url_for('main.dashboard') }}">
             📊 Upload Dati
+          </a>
+          <a class="btn btn-outline-light me-2" href="{{ url_for('help.index') }}">
+            📖 Guida
           </a>
           <div class="navbar-text me-3">
             Ciao, <strong>{{ current_user.name or current_user.email.split('@')[0] }}</strong>

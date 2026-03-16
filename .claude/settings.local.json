@@ -1,0 +1,84 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "MultiEdit",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git checkout*)",
+      "Bash(git branch*)",
+      "Bash(python *)",
+      "Bash(flask *)",
+      "Bash(pip *)",
+      "Bash(alembic *)",
+      "Bash(ls*)",
+      "Bash(cd*)",
+      "Bash(mkdir*)",
+      "Bash(mv *)",
+      "Bash(stat *)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_hover",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_tabs",
+      "mcp__playwright__browser_network_requests",
+      "mcp__playwright__browser_handle_dialog",
+      "mcp__playwright__browser_navigate_back",
+      "mcp__playwright__browser_close",
+      "Bash(cd:*)",
+      "Bash(git:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/betti/LOCALE_Office/OCHEM/**)",
+      "Bash(done)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); if echo \"$input\" | grep -q '\"file_path\"' && echo \"$input\" | grep -q 'models\\.py'; then echo '⚠️  ATTENZIONE: Stai modificando models.py — dopo le modifiche ricorda di creare una migrazione Alembic:\\n  alembic revision --autogenerate -m \"descrizione delle modifiche\"\\n  alembic upgrade head'; fi; exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); if echo \"$input\" | grep -q '\"file_path\"' && echo \"$input\" | grep -q 'models\\.py'; then echo '⚠️  ATTENZIONE: Stai riscrivendo models.py — dopo le modifiche ricorda di creare una migrazione Alembic:\\n  alembic revision --autogenerate -m \"descrizione delle modifiche\"\\n  alembic upgrade head'; fi; exit 0"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); if echo \"$input\" | grep -q 'alembic upgrade head'; then echo '✅ Migrazione applicata. Verifica con: alembic current'; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

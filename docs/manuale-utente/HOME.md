@@ -51,6 +51,7 @@
 - [[07-Admin/Gestione parametri|Gestione parametri]]
 - [[07-Admin/Approvazione registrazioni|Approvazione registrazioni]]
 - [[07-Admin/Inviti utenti|Inviti utenti]]
+- [[07-Admin/Database e Tabelle|Database e Tabelle]]
 
 ### Riferimenti
 - [[08-Glossario/Glossario|Glossario]]

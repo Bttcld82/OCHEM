@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
+from urllib.parse import urlparse
 from datetime import datetime, timedelta
 import secrets
 from app import db
@@ -42,9 +43,9 @@ def login():
                 session["disclaimer_next"] = next_page
             return redirect(url_for("auth_bp.disclaimer"))
         
-        # Redirect alla pagina richiesta o dashboard
+        # Redirect alla pagina richiesta o dashboard (validazione open redirect)
         next_page = request.args.get("next")
-        if next_page:
+        if next_page and urlparse(next_page).netloc == '':
             return redirect(next_page)
         
         # Dashboard diverso per admin
@@ -70,7 +71,7 @@ def disclaimer():
     # Se già accettato, redirect
     if current_user.accepted_disclaimer_at:
         next_page = session.get("disclaimer_next")
-        if next_page:
+        if next_page and urlparse(next_page).netloc == '':
             session.pop("disclaimer_next", None)
             return redirect(next_page)
         
@@ -87,10 +88,10 @@ def disclaimer():
             
             # Redirect alla pagina originale o dashboard
             next_page = session.get("disclaimer_next")
-            if next_page:
+            if next_page and urlparse(next_page).netloc == '':
                 session.pop("disclaimer_next", None)
                 return redirect(next_page)
-            
+
             if current_user.has_role("admin"):
                 return redirect(url_for("admin_bp.dashboard"))
             else:

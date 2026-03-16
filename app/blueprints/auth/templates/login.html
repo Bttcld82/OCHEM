@@ -11,12 +11,13 @@
             </div>
             <div class="card-body">
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="email" class="form-label">📧 Email</label>
-                        <input type="email" 
-                               class="form-control" 
-                               id="email" 
-                               name="email" 
+                        <input type="text"
+                               class="form-control"
+                               id="email"
+                               name="email"
                                placeholder="Inserisci il tuo indirizzo email"
                                value="{{ request.form.email or '' }}"
                                required>
@@ -71,7 +72,7 @@
             <div class="alert alert-info">
                 <small>
                     <strong>💡 Credenziali di test:</strong><br>
-                    Email: <code>admin@ochem.local</code><br>
+                    Email: <code>admin@ochem.com</code><br>
                     Password: <code>admin123</code>
                 </small>
             </div>

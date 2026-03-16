@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Guida OCHEM{% endblock %}
+
+{% block content %}
+<div class="row">
+  <!-- Sidebar -->
+  <div class="col-md-3">
+    {% include "help/_sidebar.html" %}
+  </div>
+
+  <!-- Contenuto principale -->
+  <div class="col-md-9">
+    <h1 class="mb-1">📖 Guida OCHEM</h1>
+    <p class="text-muted mb-4">Documentazione e istruzioni per l'utilizzo della piattaforma.</p>
+
+    {% if intro %}
+      <div class="card mb-4">
+        <div class="card-body help-content">
+          {{ intro | safe }}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="row g-4">
+      <!-- Sezione Admin -->
+      {% if current_user.is_admin %}
+      <div class="col-md-6">
+        <div class="card h-100 border-warning">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">🔧 Guida Amministratore</h5>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-3">Gestione cicli, laboratori, parametri e utenti.</p>
+            <ul class="list-unstyled">
+              {% for item in sidebar.admin %}
+              <li class="mb-2">
+                <a href="{{ url_for('help.article', slug=item.slug) }}" class="text-decoration-none">
+                  <i class="fa fa-file-alt text-warning me-1"></i>{{ item.title }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Manuale Utente Completo -->
+      {% if sidebar.manuale %}
+      <div class="col-12">
+        <div class="card border-success">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">📖 Manuale Utente Completo</h5>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-3">Guida completa alla piattaforma OCHEM, con tutti i dettagli su accesso, cicli, statistiche e amministrazione.</p>
+            <a href="{{ url_for('help.article', slug='manuale-utente/HOME') }}" class="btn btn-success btn-sm">
+              Apri il manuale completo
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Sezione Utente -->
+      <div class="col-md-{% if current_user.is_admin %}6{% else %}8 offset-md-2{% endif %}">
+        <div class="card h-100 border-info">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0">👤 Guida Utente</h5>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-3">Come usare OCHEM: accesso, dati e statistiche.</p>
+            <ul class="list-unstyled">
+              {% for item in sidebar.user %}
+              <li class="mb-2">
+                <a href="{{ url_for('help.article', slug=item.slug) }}" class="text-decoration-none">
+                  <i class="fa fa-file-alt text-info me-1"></i>{{ item.title }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

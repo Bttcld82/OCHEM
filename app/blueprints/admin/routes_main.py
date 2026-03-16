@@ -43,10 +43,3 @@ def dashboard():
 def index():
     return redirect(url_for("admin_bp.dashboard"))
 
-# Importa le route dai moduli separati
-from . import routes_cycles
-from . import routes_labs
-from . import routes_parameters
-from . import routes_users
-from . import routes_docs
-from . import routes_registrations

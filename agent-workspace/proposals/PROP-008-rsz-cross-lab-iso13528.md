@@ -1,7 +1,7 @@
 ---
 id: PROP-008
 title: "Calcolo RSZ cross-laboratorio conforme ISO 13528 Annex C"
-status: approved
+status: done
 priority: P2
 effort: L
 category: statistics

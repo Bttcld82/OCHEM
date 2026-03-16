@@ -1,0 +1,57 @@
+<div class="card mb-3 sticky-top" style="top: 1rem;">
+  <div class="card-header bg-dark text-white py-2">
+    <a href="{{ url_for('agent.index') }}" class="text-white text-decoration-none">
+      <i class="fa fa-robot me-1"></i> Agent Workspace
+    </a>
+  </div>
+  <div class="card-body p-2">
+
+    <ul class="nav flex-column nav-pills mb-2">
+      <li class="nav-item">
+        <a href="{{ url_for('agent.index') }}"
+           class="nav-link py-1 px-2 {% if current_page == 'index' %}active{% else %}text-dark{% endif %}">
+          <i class="fa fa-list me-1"></i> Indice proposte
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{{ url_for('agent.decisions') }}"
+           class="nav-link py-1 px-2 {% if current_page == 'decisions' %}active{% else %}text-dark{% endif %}">
+          <i class="fa fa-gavel me-1"></i> Log decisioni
+        </a>
+      </li>
+    </ul>
+
+    <hr class="my-1">
+
+    {% if proposals %}
+      {% set priorities = ['P1', 'P2', 'P3'] %}
+      {% for prio in priorities %}
+        {% set prio_items = proposals | selectattr('priority', 'equalto', prio) | list %}
+        {% if prio_items %}
+          <p class="text-uppercase text-muted small fw-bold mb-1 mt-2 px-2">{{ prio }}</p>
+          <ul class="nav flex-column nav-pills mb-1">
+            {% for p in prio_items %}
+            <li class="nav-item">
+              <a href="{{ url_for('agent.proposal_detail', prop_id=p.id) }}"
+                 class="nav-link py-1 px-2 d-flex justify-content-between align-items-center
+                        {% if current_page == 'proposal' and current_prop_id is defined and current_prop_id == p.id %}active{% else %}text-dark{% endif %}">
+                <span class="text-truncate small" style="max-width:140px" title="{{ p.title }}">{{ p.id }}</span>
+                {% set s = p.get('status', '') %}
+                <span class="badge ms-1
+                  {% if s == 'approved' %}bg-success
+                  {% elif s == 'rejected' %}bg-danger
+                  {% elif s == 'in_progress' %}bg-info
+                  {% elif s == 'done' %}bg-secondary
+                  {% else %}bg-warning text-dark{% endif %}" style="font-size:.6rem">
+                  {{ s }}
+                </span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+  </div>
+</div>

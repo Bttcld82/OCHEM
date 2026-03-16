@@ -1,7 +1,7 @@
 ---
 id: PROP-005
 title: "Reset password admin: rimozione esposizione password in chiaro nel flash"
-status: approved
+status: done
 priority: P2
 effort: S
 category: admin
