@@ -11,3 +11,10 @@ Faker>=20.0
 # Per database SQLite
 SQLAlchemy>=2.0
 alembic>=1.12
+
+# Per blueprint help (rendering Markdown con frontmatter)
+markdown>=3.5
+python-frontmatter>=1.0
+
+# Per generazione report PDF (ISO 13528 §7.4)
+reportlab>=4.0

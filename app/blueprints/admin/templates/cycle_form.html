@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if cycle %}Modifica Ciclo - Admin OCHEM{% else %}Nuovo Ciclo - Admin OCHEM{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                {% if cycle %}
+                    <i class="fas fa-edit"></i> Modifica Ciclo: {{ cycle.code }}
+                {% else %}
+                    <i class="fas fa-plus"></i> Nuovo Ciclo PT
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">Dati base del ciclo di Proficiency Testing</p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if cycle %}
+            <a href="{{ url_for('admin_bp.cycle_detail', cycle_id=cycle.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Torna al Ciclo
+            </a>
+            {% else %}
+            <a href="{{ url_for('admin_bp.cycles_list') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Lista Cicli
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Form Principale -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-recycle"></i> Dati Ciclo</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Codice Ciclo *</label>
+                                {{ form.code(class="form-control", placeholder="es. PT2024-001") }}
+                                {% for e in form.code.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                <div class="form-text">Identificatore univoco del ciclo</div>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Nome Ciclo *</label>
+                                {{ form.name(class="form-control", placeholder="es. Ciclo PT Metalli 2024") }}
+                                {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Stato</label>
+                                {{ form.status(class="form-select") }}
+                                {% for e in form.status.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Data Inizio</label>
+                                {{ form.start_date(class="form-control") }}
+                                {% for e in form.start_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Data Fine</label>
+                                {{ form.end_date(class="form-control") }}
+                                {% for e in form.end_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Fornitore (Provider)</label>
+                                {{ form.provider_id(class="form-select") }}
+                                {% for e in form.provider_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i>
+                                    {% if cycle %}Aggiorna Ciclo{% else %}Crea Ciclo{% endif %}
+                                </button>
+                                {% if cycle %}
+                                <a href="{{ url_for('admin_bp.cycle_detail', cycle_id=cycle.id) }}" class="btn btn-outline-secondary ms-2">
+                                    <i class="fas fa-times"></i> Annulla
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('admin_bp.cycles_list') }}" class="btn btn-outline-secondary ms-2">
+                                    <i class="fas fa-times"></i> Annulla
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% if cycle %}
+                            <div>
+                                {% set has_data = participations_count > 0 or results_count > 0 %}
+                                {% if not has_data %}
+                                <form method="POST" action="{{ url_for('admin_bp.cycle_delete', cycle_id=cycle.id) }}"
+                                      class="d-inline" onsubmit="return confirm('Eliminare definitivamente il ciclo {{ cycle.code }}?')">
+                                    <button type="submit" class="btn btn-outline-danger">
+                                        <i class="fas fa-trash"></i> Elimina
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-danger" disabled
+                                        title="Impossibile eliminare: ciclo con dati">
+                                    <i class="fas fa-lock"></i> In Uso
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Workflow Stati</h6>
+                </div>
+                <div class="card-body small">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item px-0 py-2">
+                            <span class="badge bg-secondary me-2">Bozza</span>
+                            Ciclo in preparazione, non visibile ai lab
+                        </div>
+                        <div class="list-group-item px-0 py-2">
+                            <span class="badge bg-warning me-2">In Revisione</span>
+                            Inviato per approvazione admin
+                        </div>
+                        <div class="list-group-item px-0 py-2">
+                            <span class="badge bg-success me-2">Pubblicato</span>
+                            Attivo: i lab possono caricare risultati
+                        </div>
+                        <div class="list-group-item px-0 py-2">
+                            <span class="badge bg-info me-2">Modifiche Richieste</span>
+                            Admin ha richiesto correzioni
+                        </div>
+                        <div class="list-group-item px-0 py-2">
+                            <span class="badge bg-danger me-2">Rigettato</span>
+                            Ciclo non approvato
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2 mt-3">
+                        <i class="fas fa-lightbulb"></i>
+                        Dopo la creazione, aggiungi i parametri con XPT e SigmaPT dalla pagina di dettaglio.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

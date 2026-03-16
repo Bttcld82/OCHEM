@@ -1,8 +1,10 @@
-from flask import render_template, request, redirect, url_for, flash
+import secrets
+
+from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from datetime import datetime
 from app import db
-from app.models import RegistrationRequest, User, Lab, Role, UserLabRole
+from app.models import RegistrationRequest, User, Lab, Role, UserLabRole, JobLog
 from app.blueprints.auth.decorators import disclaimer_required, role_required
 from .routes_main import admin_bp
 
@@ -105,15 +107,18 @@ def registration_approve(registration_id):
             first_name = name_parts[0] if name_parts else "Utente"
             last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
             
+            temp_password = secrets.token_urlsafe(12)
             user = User(
                 email=registration.email,
                 first_name=first_name,
                 last_name=last_name,
                 is_active=True
             )
+            user.set_password(temp_password)
             db.session.add(user)
             db.session.flush()  # Per ottenere l'ID
         else:
+            temp_password = None
             user.is_active = True
         
         # 2. Gestisci il laboratorio
@@ -173,20 +178,33 @@ def registration_approve(registration_id):
         
         # 4. Approva la richiesta
         registration.approve(current_user.email, admin_note)
-        
+
+        # 5. Log operazione
+        log = JobLog(
+            job_type='registration_approve',
+            status='completed',
+            completed_at=datetime.utcnow(),
+            details=(
+                f"Approvata richiesta #{registration.id} ({registration.email}). "
+                f"Utente {'creato' if temp_password else 'esistente'}. "
+                f"Lab: {target_lab.code if target_lab else 'nessuno'}."
+            ),
+        )
+        db.session.add(log)
         db.session.commit()
-        
-        success_msg = f"Richiesta approvata! Utente {user.email} creato"
+
+        success_msg = f"Richiesta approvata! Utente {user.email} "
+        success_msg += "creato" if temp_password else "esistente"
         if target_lab:
-            success_msg += f" e assegnato al lab {target_lab.name} ({target_lab.code}) con ruolo {desired_role}"
+            success_msg += f", assegnato al lab {target_lab.name} ({target_lab.code}) con ruolo {desired_role}"
         success_msg += "."
-        
+        if temp_password:
+            success_msg += f" Password temporanea: {temp_password}"
         flash(success_msg, "success")
-        
-        # TODO: Invia email di notifica all'utente
-        
+
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"Errore approvazione registrazione #{registration_id}: {e}")
         flash(f"Errore durante l'approvazione: {str(e)}", "danger")
     
     return redirect(url_for("admin_bp.registration_detail", registration_id=registration_id))
@@ -209,10 +227,14 @@ def registration_reject(registration_id):
         return redirect(url_for("admin_bp.registration_detail", registration_id=registration_id))
     
     registration.reject(current_user.email, admin_note)
+    log = JobLog(
+        job_type='registration_reject',
+        status='completed',
+        completed_at=datetime.utcnow(),
+        details=f"Rifiutata richiesta #{registration.id} ({registration.email}). Motivo: {admin_note}",
+    )
+    db.session.add(log)
     db.session.commit()
-    
+
     flash("Richiesta rifiutata.", "info")
-    
-    # TODO: Invia email di notifica all'utente
-    
     return redirect(url_for("admin_bp.registration_detail", registration_id=registration_id))

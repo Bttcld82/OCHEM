@@ -270,6 +270,8 @@ class CycleParameter(db.Model):
     parameter_code = db.Column(db.String(20), db.ForeignKey('parameter.code'), nullable=False)
     xpt = db.Column(db.Numeric(18, 6), nullable=False)
     sigma_pt = db.Column(db.Numeric(18, 6), nullable=False)
+    xpt_robust = db.Column(db.Numeric(18, 6), nullable=True)      # media robusta (algoritmo A ISO 13528 Annex C)
+    sigma_pt_robust = db.Column(db.Numeric(18, 6), nullable=True)  # sigma robusto cross-lab
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

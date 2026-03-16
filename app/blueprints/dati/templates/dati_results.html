@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Risultati - {{ lab.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1"><i class="fas fa-table"></i> Risultati Inseriti</h1>
+            <p class="text-muted mb-0">Lab: <strong>{{ lab.code }} - {{ lab.name }}</strong></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('dati.result_insert', lab_code=lab_code) }}" class="btn btn-success btn-sm">
+                <i class="fas fa-plus"></i> Nuovo Risultato
+            </a>
+            <a href="{{ url_for('main.lab_hub', lab_code=lab_code) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Hub Lab
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtro ciclo -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Filtra per Ciclo</label>
+                    <select name="cycle" class="form-select">
+                        <option value="">Tutti i cicli</option>
+                        {% for c in available_cycles %}
+                        <option value="{{ c }}" {% if cycle_filter == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filtra
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabella Risultati -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-table"></i> Risultati: {{ results_data|length }}</h6>
+            <a href="{{ url_for('stats_bp.results_view', lab_code=lab_code) }}" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-chart-bar"></i> Vista Statistica
+            </a>
+        </div>
+        <div class="card-body p-0">
+            {% if results_data %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ciclo</th>
+                            <th>Parametro</th>
+                            <th>Valore</th>
+                            <th>Z-Score</th>
+                            <th>SZ²</th>
+                            <th>Tecnica</th>
+                            <th>Data</th>
+                            <th width="100">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result, zscore in results_data %}
+                        {% set z_val = zscore.z if zscore else None %}
+                        {% set abs_z = z_val|abs if z_val is not none else None %}
+                        <tr class="{% if abs_z is not none %}{% if abs_z >= 3 %}table-danger{% elif abs_z >= 2 %}table-warning{% else %}table-success{% endif %}{% endif %}">
+                            <td class="small fw-bold">{{ result.cycle_code or '—' }}</td>
+                            <td>
+                                <div class="fw-bold">{{ result.parameter_code }}</div>
+                                <small class="text-muted">{{ result.parameter.name if result.parameter else '' }}</small>
+                            </td>
+                            <td>{{ result.measured_value }}</td>
+                            <td>
+                                {% if z_val is not none %}
+                                <span class="fw-bold {% if abs_z >= 3 %}text-danger{% elif abs_z >= 2 %}text-warning{% else %}text-success{% endif %}">
+                                    {{ "%.3f"|format(z_val) }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ "%.3f"|format(zscore.sz2) if zscore else '—' }}</td>
+                            <td class="small text-muted">{{ result.technique_code or '—' }}</td>
+                            <td class="small text-muted">
+                                {{ result.submitted_at.strftime('%d/%m/%Y %H:%M') if result.submitted_at else '—' }}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('dati.result_edit', lab_code=lab_code, result_id=result.id) }}"
+                                       class="btn btn-outline-primary" title="Modifica">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('dati.result_delete', lab_code=lab_code, result_id=result.id) }}"
+                                          onsubmit="return confirm('Eliminare questo risultato?')" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger" title="Elimina">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nessun Risultato Trovato</h5>
+                <a href="{{ url_for('dati.result_insert', lab_code=lab_code) }}" class="btn btn-outline-success mt-2">
+                    <i class="fas fa-plus"></i> Inserisci il Primo Risultato
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Legenda colori -->
+    {% if results_data %}
+    <div class="card border-0 shadow-sm mt-3">
+        <div class="card-body py-2">
+            <div class="d-flex gap-4 small">
+                <span><span class="badge bg-success">Verde</span> |Z| &lt; 2 — Eccellente</span>
+                <span><span class="badge bg-warning">Giallo</span> 2 ≤ |Z| &lt; 3 — Accettabile</span>
+                <span><span class="badge bg-danger">Rosso</span> |Z| ≥ 3 — Fuori controllo</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

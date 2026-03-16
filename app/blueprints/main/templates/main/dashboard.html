@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — OCHEM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Dashboard</h1>
+  <span class="text-muted small">Benvenuto, <strong>{{ current_user.name or current_user.email }}</strong></span>
+</div>
+
+{# Statistiche rapide #}
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card text-center border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-primary">{{ total_labs }}</div>
+        <div class="text-muted small">Laboratori</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card text-center border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-success">{{ recent_cycles | length }}</div>
+        <div class="text-muted small">Cicli attivi</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card text-center border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-secondary">{{ user_uploads_count }}</div>
+        <div class="text-muted small">Upload effettuati</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# Laboratori dell'utente #}
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">I tuoi laboratori</div>
+      <div class="card-body p-0">
+        {% if user_labs %}
+          <div class="list-group list-group-flush">
+            {% for entry in user_labs %}
+            <a href="{{ url_for('main.lab_hub', lab_code=entry.lab.code) }}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">{{ entry.lab.name }}</div>
+                <div class="text-muted small">{{ entry.lab.code }}</div>
+              </div>
+              <span class="badge
+                {% if entry.role == 'owner_lab' %}bg-primary
+                {% elif entry.role == 'analyst' %}bg-success
+                {% else %}bg-secondary{% endif %}">
+                {{ entry.role }}
+              </span>
+            </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="p-4 text-center text-muted">
+            Nessun laboratorio associato al tuo account.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Cicli recenti pubblicati #}
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">Cicli recenti</div>
+      <div class="card-body p-0">
+        {% if recent_cycles %}
+          <ul class="list-group list-group-flush">
+            {% for cycle in recent_cycles %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="small fw-semibold">{{ cycle.name }}</div>
+                <div class="text-muted" style="font-size:0.75rem;">{{ cycle.code }}</div>
+              </div>
+              <span class="badge bg-success">pubblicato</span>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="p-4 text-center text-muted small">Nessun ciclo pubblicato.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

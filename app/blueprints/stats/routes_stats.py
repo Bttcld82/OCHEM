@@ -21,11 +21,6 @@ import json
 # Blueprint già definito in __init__.py
 from . import stats_bp, stats_general_bp
 
-@stats_bp.route("/test-chart")
-def test_chart(lab_code):
-    """Test temporaneo per Plotly"""
-    return send_file("../../test_chart.html")
-
 
 @stats_bp.route("/template.csv")
 @login_required
@@ -542,13 +537,10 @@ def _save_results_to_db(df, lab_code, upload_file_id, cycle=None):
             result = Result(
                 lab_code=lab_code,
                 parameter_code=row['parameter_code'],
-                result_value=float(row['result_value']),
-                technique_code=row.get('technique_code', ''),
-                unit_code=row.get('unit_code', ''),
-                date_performed=row.get('date_performed') or datetime.utcnow(),
-                upload_file_id=upload_file_id,
+                measured_value=float(row['result_value']),
+                technique_code=row.get('technique_code') or None,
                 cycle_code=cycle.code if cycle else None,
-                user_id=current_user.id
+                submitted_at=datetime.utcnow()
             )
             db.session.add(result)
             db.session.flush()  # Per ottenere l'ID
@@ -787,3 +779,19 @@ def general_stats_lab(lab_code):
         current_app.logger.error(f"Error loading lab stats for {lab_code}: {str(e)}")
         flash(f"Errore nel caricamento delle statistiche: {str(e)}", "danger")
         return redirect(url_for('main.lab_hub', lab_code=lab_code))
+
+
+@stats_bp.route("/cycles/<cycle_code>/report.pdf")
+@login_required
+@lab_role_required("viewer")
+def lab_cycle_report_pdf(lab_code, cycle_code):
+    """
+    Scarica il report PDF personale del laboratorio per un ciclo.
+    Include solo i propri dati + statistiche aggregate anonimizzate (ISO 13528 §7.4.1).
+    """
+    from app.services.report_generator import generate_cycle_report_pdf
+    from datetime import date
+    cycle = Cycle.query.filter_by(code=cycle_code).first_or_404()
+    buffer = generate_cycle_report_pdf(cycle.id, admin_view=False, lab_code=lab_code)
+    filename = f'report_PT_{cycle_code}_{lab_code}_{date.today()}.pdf'
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')

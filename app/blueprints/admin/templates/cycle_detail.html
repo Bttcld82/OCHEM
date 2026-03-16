@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}Ciclo {{ cycle.code }} - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-recycle"></i> Ciclo: {{ cycle.code }}
+                {% if cycle.status == 'draft' %}<span class="badge bg-secondary ms-2">Bozza</span>
+                {% elif cycle.status == 'pending_review' %}<span class="badge bg-warning ms-2">In Revisione</span>
+                {% elif cycle.status == 'published' %}<span class="badge bg-success ms-2">Pubblicato</span>
+                {% elif cycle.status == 'changes_requested' %}<span class="badge bg-info ms-2">Modifiche Richieste</span>
+                {% elif cycle.status == 'rejected' %}<span class="badge bg-danger ms-2">Rigettato</span>
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">{{ cycle.name }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_bp.cycles_list') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Lista Cicli
+            </a>
+            <a href="{{ url_for('admin_bp.cycle_edit', cycle_id=cycle.id) }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-edit"></i> Modifica
+            </a>
+            <a href="{{ url_for('admin_bp.cycle_report_pdf', cycle_id=cycle.id) }}"
+               class="btn btn-outline-danger btn-sm" target="_blank">
+                <i class="fas fa-file-pdf"></i> Report PDF
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- COLONNA SINISTRA: Info + Workflow -->
+        <div class="col-md-4">
+
+            <!-- Info Base -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Informazioni</h6>
+                </div>
+                <div class="card-body small">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><th class="text-muted w-40">Codice</th><td class="fw-bold">{{ cycle.code }}</td></tr>
+                        <tr><th class="text-muted">Nome</th><td>{{ cycle.name }}</td></tr>
+                        <tr><th class="text-muted">Fornitore</th>
+                            <td>{{ cycle.provider.name if cycle.provider else '—' }}</td></tr>
+                        <tr><th class="text-muted">Data Inizio</th>
+                            <td>{{ cycle.start_date.strftime('%d/%m/%Y') if cycle.start_date else '—' }}</td></tr>
+                        <tr><th class="text-muted">Data Fine</th>
+                            <td>{{ cycle.end_date.strftime('%d/%m/%Y') if cycle.end_date else '—' }}</td></tr>
+                        <tr><th class="text-muted">Creato il</th>
+                            <td>{{ cycle.created_at.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+                        <tr><th class="text-muted">Modificato</th>
+                            <td>{{ cycle.updated_at.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Workflow -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-exchange-alt"></i> Cambio Stato</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if cycle.status == 'draft' %}
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="new_status" value="pending_review">
+                            <button type="submit" class="btn btn-warning w-100 btn-sm">
+                                <i class="fas fa-clock"></i> Invia in Revisione
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if cycle.status in ['pending_review', 'changes_requested', 'draft'] %}
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}"
+                              onsubmit="return confirm('Pubblicare il ciclo {{ cycle.code }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="new_status" value="published">
+                            <button type="submit" class="btn btn-success w-100 btn-sm">
+                                <i class="fas fa-check-circle"></i> Pubblica
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if cycle.status == 'pending_review' %}
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="new_status" value="changes_requested">
+                            <button type="submit" class="btn btn-info w-100 btn-sm">
+                                <i class="fas fa-redo"></i> Richiedi Modifiche
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}"
+                              onsubmit="return confirm('Rigettare il ciclo {{ cycle.code }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="new_status" value="rejected">
+                            <button type="submit" class="btn btn-danger w-100 btn-sm">
+                                <i class="fas fa-times"></i> Rigetta
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if cycle.status == 'published' %}
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_toggle_status', cycle_id=cycle.id) }}"
+                              onsubmit="return confirm('Riportare in bozza il ciclo {{ cycle.code }}? I lab non potranno più caricare risultati.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="new_status" value="draft">
+                            <button type="submit" class="btn btn-outline-secondary w-100 btn-sm">
+                                <i class="fas fa-undo"></i> Riporta in Bozza
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistiche -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Riepilogo</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="text-primary mb-0">{{ params|length }}</h4>
+                            <small class="text-muted">Parametri</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success mb-0">{{ participations|length }}</h4>
+                            <small class="text-muted">Laboratori</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-info mb-0">{{ cycle_docs|length }}</h4>
+                            <small class="text-muted">Documenti</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistiche Consenso ISO 13528 -->
+            {% if cycle.status == 'published' %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-calculator"></i> Statistiche Consenso</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        Ricalcola XPT robusto e sigma robusto cross-lab per tutti i parametri
+                        (algoritmo A ISO 13528 Annex C). Aggiorna <code>PtStats.rsz</code>.
+                    </p>
+                    <form method="POST"
+                          action="{{ url_for('admin_bp.cycle_recalculate_consensus', cycle_id=cycle.id) }}"
+                          onsubmit="return confirm('Ricalcolare le statistiche consenso per tutti i parametri del ciclo {{ cycle.code }}?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-sync-alt me-1"></i> Ricalcola consenso
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- COLONNA DESTRA: Parametri + Lab + Docs -->
+        <div class="col-md-8">
+
+            <!-- SEZIONE PARAMETRI -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-vial"></i> Parametri con XPT e SigmaPT</h6>
+                    <span class="badge bg-white text-primary">{{ params|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if params %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Parametro</th>
+                                    <th>XPT</th>
+                                    <th>SigmaPT</th>
+                                    <th width="120">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cp in params %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ cp.parameter_code }}</div>
+                                        <small class="text-muted">{{ cp.parameter.name if cp.parameter else '' }}</small>
+                                    </td>
+                                    <td>
+                                        <!-- Inline edit XPT -->
+                                        <form method="POST" action="{{ url_for('admin_bp.cycle_param_edit', cycle_id=cycle.id, cp_id=cp.id) }}"
+                                              class="d-flex align-items-center gap-1">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="number" name="xpt" step="0.000001"
+                                                   value="{{ cp.xpt }}"
+                                                   class="form-control form-control-sm" style="width:90px"
+                                                   {% if cycle.status == 'published' %}disabled{% endif %}>
+                                    </td>
+                                    <td>
+                                            <input type="number" name="sigma_pt" step="0.000001" min="0.000001"
+                                                   value="{{ cp.sigma_pt }}"
+                                                   class="form-control form-control-sm" style="width:90px"
+                                                   {% if cycle.status == 'published' %}disabled{% endif %}>
+                                            {% if cycle.status != 'published' %}
+                                            <button type="submit" class="btn btn-outline-primary btn-sm" title="Salva">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                            {% endif %}
+                                        </form>
+                                    </td>
+                                    <td>
+                                        {% if cycle.status != 'published' %}
+                                        <form method="POST" action="{{ url_for('admin_bp.cycle_param_delete', cycle_id=cycle.id, cp_id=cp.id) }}"
+                                              onsubmit="return confirm('Rimuovere {{ cp.parameter_code }} dal ciclo?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3 text-muted small">
+                        <i class="fas fa-vial fa-2x mb-2"></i><br>Nessun parametro aggiunto
+                    </div>
+                    {% endif %}
+
+                    {% if cycle.status != 'published' %}
+                    <!-- Form aggiunta parametro -->
+                    <div class="card-footer bg-light">
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_param_add', cycle_id=cycle.id) }}"
+                              class="row g-2 align-items-end">
+                            {{ param_form.hidden_tag() }}
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold mb-1">Parametro</label>
+                                {{ param_form.parameter_code(class="form-select form-select-sm") }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold mb-1">XPT</label>
+                                {{ param_form.xpt(class="form-control form-control-sm", placeholder="0.000000") }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold mb-1">SigmaPT</label>
+                                {{ param_form.sigma_pt(class="form-control form-control-sm", placeholder="0.000000") }}
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                    <i class="fas fa-plus"></i> Aggiungi
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- SEZIONE LABORATORI -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-flask"></i> Laboratori Partecipanti</h6>
+                    <span class="badge bg-white text-success">{{ participations|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if participations %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Codice</th>
+                                    <th>Nome Lab</th>
+                                    <th>Stato</th>
+                                    <th>Iscritto il</th>
+                                    <th width="60">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lp in participations %}
+                                <tr>
+                                    <td class="fw-bold">{{ lp.lab_code }}</td>
+                                    <td>{{ lp.lab.name if lp.lab else '—' }}</td>
+                                    <td>
+                                        {% if lp.status == 'active' %}
+                                        <span class="badge bg-success">Attivo</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ lp.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small text-muted">{{ lp.registered_at.strftime('%d/%m/%Y') if lp.registered_at else '—' }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('admin_bp.cycle_lab_remove', cycle_id=cycle.id, lp_id=lp.id) }}"
+                                              onsubmit="return confirm('Rimuovere {{ lp.lab_code }} dal ciclo?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3 text-muted small">
+                        <i class="fas fa-flask fa-2x mb-2"></i><br>Nessun laboratorio iscritto
+                    </div>
+                    {% endif %}
+
+                    <!-- Form aggiunta lab -->
+                    <div class="card-footer bg-light">
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_lab_add', cycle_id=cycle.id) }}"
+                              class="row g-2 align-items-end">
+                            {{ lab_form.hidden_tag() }}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold mb-1">Laboratorio</label>
+                                {{ lab_form.lab_code(class="form-select form-select-sm") }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold mb-1">Stato</label>
+                                {{ lab_form.status(class="form-select form-select-sm") }}
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-success btn-sm w-100">
+                                    <i class="fas fa-plus"></i> Aggiungi
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEZIONE DOCUMENTI -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-file-alt"></i> Documenti</h6>
+                    <span class="badge bg-white text-info">{{ cycle_docs|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if cycle_docs %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nome File</th>
+                                    <th>Tipo</th>
+                                    <th>Dimensione</th>
+                                    <th>Caricato il</th>
+                                    <th width="100">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cd in cycle_docs %}
+                                {% set doc = cd.doc %}
+                                <tr>
+                                    <td class="small">{{ doc.original_filename if doc else '—' }}</td>
+                                    <td><span class="badge bg-secondary">{{ cd.doc_type }}</span></td>
+                                    <td class="small text-muted">
+                                        {% if doc and doc.file_size %}
+                                            {{ (doc.file_size / 1024)|round(1) }} KB
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    <td class="small text-muted">
+                                        {{ doc.uploaded_at.strftime('%d/%m/%Y') if doc and doc.uploaded_at else '—' }}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('admin_bp.cycle_doc_download', cycle_id=cycle.id, doc_id=doc.id) }}"
+                                               class="btn btn-outline-primary" title="Scarica">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('admin_bp.cycle_doc_delete', cycle_id=cycle.id, cd_id=cd.id) }}"
+                                                  onsubmit="return confirm('Eliminare il documento?')" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-outline-danger" title="Elimina">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3 text-muted small">
+                        <i class="fas fa-file fa-2x mb-2"></i><br>Nessun documento caricato
+                    </div>
+                    {% endif %}
+
+                    <!-- Form upload documento -->
+                    <div class="card-footer bg-light">
+                        <form method="POST" action="{{ url_for('admin_bp.cycle_doc_upload', cycle_id=cycle.id) }}"
+                              enctype="multipart/form-data" class="row g-2 align-items-end">
+                            {{ doc_form.hidden_tag() }}
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold mb-1">File</label>
+                                {{ doc_form.doc_file(class="form-control form-control-sm") }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold mb-1">Tipo</label>
+                                {{ doc_form.doc_type(class="form-select form-select-sm") }}
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-info btn-sm w-100">
+                                    <i class="fas fa-upload"></i> Carica
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

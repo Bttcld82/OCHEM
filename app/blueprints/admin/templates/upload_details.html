@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Dettaglio Upload #{{ upload.id }} - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Dettaglio Upload #{{ upload.id }}</h1>
+            <p class="text-muted mb-0">{{ upload.original_filename }}</p>
+        </div>
+        <a href="{{ url_for('admin_bp.uploads_list') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Tutti gli upload
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Informazioni file -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="fas fa-file me-1"></i> Informazioni file
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4 text-muted">File originale</dt>
+                        <dd class="col-sm-8">{{ upload.original_filename }}</dd>
+
+                        <dt class="col-sm-4 text-muted">Nome interno</dt>
+                        <dd class="col-sm-8"><code>{{ upload.filename }}</code></dd>
+
+                        <dt class="col-sm-4 text-muted">Tipo MIME</dt>
+                        <dd class="col-sm-8">{{ upload.mime_type }}</dd>
+
+                        <dt class="col-sm-4 text-muted">Dimensione</dt>
+                        <dd class="col-sm-8">{{ (upload.file_size / 1024) | round(1) }} KB ({{ upload.file_size }} byte)</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contesto e stato -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="fas fa-info-circle me-1"></i> Contesto e stato
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4 text-muted">Laboratorio</dt>
+                        <dd class="col-sm-8"><span class="badge bg-secondary">{{ upload.lab_code }}</span></dd>
+
+                        <dt class="col-sm-4 text-muted">Ciclo</dt>
+                        <dd class="col-sm-8"><span class="badge bg-info text-dark">{{ upload.cycle_code }}</span></dd>
+
+                        <dt class="col-sm-4 text-muted">Stato</dt>
+                        <dd class="col-sm-8">
+                            {% if upload.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">In attesa</span>
+                            {% elif upload.status == 'processed' %}
+                                <span class="badge bg-success">Elaborato</span>
+                            {% elif upload.status == 'error' %}
+                                <span class="badge bg-danger">Errore</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ upload.status }}</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4 text-muted">Caricato il</dt>
+                        <dd class="col-sm-8">
+                            {{ upload.uploaded_at.strftime('%d/%m/%Y alle %H:%M') if upload.uploaded_at else '-' }}
+                        </dd>
+
+                        <dt class="col-sm-4 text-muted">Elaborato il</dt>
+                        <dd class="col-sm-8">
+                            {{ upload.processed_at.strftime('%d/%m/%Y alle %H:%M') if upload.processed_at else 'Non ancora elaborato' }}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

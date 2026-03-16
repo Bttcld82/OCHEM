@@ -1,8 +1,12 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+import secrets
+
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User, Lab, Role, Result, JobLog, UserLabRole
 from app.services.roles import RoleService, RoleManagementError
+from app.blueprints.auth.decorators import disclaimer_required, role_required
 from datetime import datetime
 from .routes_main import admin_bp
 
@@ -11,6 +15,9 @@ from .routes_main import admin_bp
 # ===========================
 
 @admin_bp.route("/users")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def users_list():
     """Lista utenti"""
     q = request.args.get("q", "").strip()
@@ -23,6 +30,9 @@ def users_list():
     return render_template("users_list.html", users=users, q=q)
 
 @admin_bp.route("/users/new", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def users_new():
     """Creazione nuovo utente"""
     if request.method == "POST":
@@ -56,37 +66,32 @@ def users_new():
     return render_template("users_form.html", user=None, roles=roles, labs=labs)
 
 @admin_bp.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def users_edit(user_id):
     """Modifica utente esistente"""
     user = User.query.get_or_404(user_id)
     
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
         email = request.form.get("email", "").strip()
-        full_name = request.form.get("full_name", "").strip()
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
         password = request.form.get("password", "").strip()
-        role_id = request.form.get("role_id")
-        lab_id = request.form.get("lab_id")
-        
-        if not username or not email or not full_name:
-            flash("Username, email e nome completo sono obbligatori.", "danger")
+
+        if not email or not first_name:
+            flash("Email e nome sono obbligatori.", "danger")
             return redirect(url_for("admin_bp.users_edit", user_id=user.id))
-        
-        if User.query.filter(User.id != user.id, User.username == username).first():
-            flash("Username già usato da un altro utente.", "warning")
-            return redirect(url_for("admin_bp.users_edit", user_id=user.id))
-        
+
         if User.query.filter(User.id != user.id, User.email == email).first():
             flash("Email già usata da un altro utente.", "warning")
             return redirect(url_for("admin_bp.users_edit", user_id=user.id))
-        
-        user.username = username
+
         user.email = email
-        user.full_name = full_name
+        user.first_name = first_name
+        user.last_name = last_name
         if password:
             user.password_hash = generate_password_hash(password)
-        user.role_id = int(role_id) if role_id else None
-        user.lab_id = int(lab_id) if lab_id else None
         user.updated_at = datetime.utcnow()
         db.session.commit()
         flash("Utente aggiornato con successo.", "success")
@@ -97,16 +102,18 @@ def users_edit(user_id):
     return render_template("users_form.html", user=user, roles=roles, labs=labs)
 
 @admin_bp.route("/users/<int:user_id>/delete", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def users_delete(user_id):
     """Elimina utente"""
     user = User.query.get_or_404(user_id)
     
-    # Verifica se l'utente è usato in risultati o log
-    result_usage = Result.query.filter_by(created_by=user.username).count()
+    # Verifica se l'utente è usato in job log
     job_usage = JobLog.query.filter_by(user_id=user.id).count()
-    
-    if result_usage > 0 or job_usage > 0:
-        flash(f"Impossibile eliminare: utente usato in {result_usage} risultati e {job_usage} log.", "danger")
+
+    if job_usage > 0:
+        flash(f"Impossibile eliminare: utente usato in {job_usage} log.", "danger")
         return redirect(url_for("admin_bp.users_list"))
     
     db.session.delete(user)
@@ -115,6 +122,9 @@ def users_delete(user_id):
     return redirect(url_for("admin_bp.users_list"))
 
 @admin_bp.route("/users/<int:user_id>/toggle_active", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def user_toggle_active(user_id):
     """Attiva/disattiva utente"""
     user = User.query.get_or_404(user_id)
@@ -123,10 +133,13 @@ def user_toggle_active(user_id):
     db.session.commit()
     
     status = "attivato" if user.is_active else "disattivato"
-    flash(f"Utente {user.full_name} {status} con successo.", "success")
+    flash(f"Utente {user.name} {status} con successo.", "success")
     return redirect(url_for("admin_bp.users_list"))
 
 @admin_bp.route("/users/<int:user_id>/reset_password", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def user_reset_password(user_id):
     """Reset password utente"""
     try:
@@ -141,16 +154,20 @@ def user_reset_password(user_id):
         user.set_password(temp_password)  # Usa il metodo del modello User
         user.updated_at = datetime.utcnow()
         db.session.commit()
-        
-        message = f"🔑 Password di {user.name} resettata con successo! Nuova password temporanea: <strong>{temp_password}</strong><br><small>⚠️ Comunicare questa password all'utente e richiedere di cambiarla al primo accesso.</small>"
-        flash(message, "success")
-        
+
+        flash(
+            f"Password di {user.name} resettata. "
+            f"Password temporanea: {temp_password} — "
+            f"Comunicarla all'utente e invitarlo a cambiarla al primo accesso.",
+            "warning"
+        )
+        current_app.logger.info(f"Password reset for user {user.id} ({user.email}) by admin")
+
         # Se è una richiesta AJAX, restituisci JSON
         if request.content_type == 'application/json':
             return jsonify({
-                'success': True, 
-                'message': f'Password resettata. Nuova password: {temp_password}',
-                'temp_password': temp_password
+                'success': True,
+                'message': f'Password resettata. Temporanea: {temp_password}'
             })
         
         # Altrimenti redirect
@@ -170,6 +187,9 @@ def user_reset_password(user_id):
 # ===========================
 
 @admin_bp.route("/users/<int:user_id>/make-admin", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def make_admin(user_id):
     """Rende un utente amministratore"""
     try:
@@ -185,6 +205,9 @@ def make_admin(user_id):
         return jsonify({'success': False, 'message': str(e)}), 400
 
 @admin_bp.route("/users/<int:user_id>/remove-admin", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def remove_admin(user_id):
     """Rimuove privilegi admin da un utente"""
     try:
@@ -206,6 +229,9 @@ def remove_admin(user_id):
         return jsonify({'success': False, 'message': str(e)}), 400
 
 @admin_bp.route("/users/<int:user_id>/detail")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def user_detail(user_id):
     """Dettaglio utente con laboratori associati"""
     user = User.query.get_or_404(user_id)
@@ -231,6 +257,9 @@ def user_detail(user_id):
 # ===========================
 
 @admin_bp.route("/users/<int:user_id>/labs/add", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def add_user_to_lab(user_id):
     """Aggiungi utente a un laboratorio"""
     try:
@@ -254,6 +283,9 @@ def add_user_to_lab(user_id):
     return redirect(url_for("admin_bp.user_detail", user_id=user_id))
 
 @admin_bp.route("/users/<int:user_id>/labs/<int:lab_id>/update-role", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def update_user_lab_role(user_id, lab_id):
     """Cambia il ruolo di un utente in un laboratorio"""
     try:
@@ -276,6 +308,9 @@ def update_user_lab_role(user_id, lab_id):
     return redirect(url_for("admin_bp.user_detail", user_id=user_id))
 
 @admin_bp.route("/users/<int:user_id>/labs/<int:lab_id>/remove", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def remove_user_lab_role(user_id, lab_id):
     """Rimuove un utente da un laboratorio"""
     try:
@@ -296,12 +331,18 @@ def remove_user_lab_role(user_id, lab_id):
 # ===========================
 
 @admin_bp.route("/roles")
+@login_required
+@disclaimer_required
+@role_required("admin")
 def roles_list():
     """Lista ruoli"""
     roles = Role.query.order_by(Role.name.asc()).all()
     return render_template("roles_list.html", roles=roles)
 
 @admin_bp.route("/roles/new", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def roles_new():
     """Creazione nuovo ruolo"""
     if request.method == "POST":
@@ -325,6 +366,9 @@ def roles_new():
     return render_template("roles_form.html", role=None)
 
 @admin_bp.route("/roles/<int:role_id>/edit", methods=["GET", "POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def roles_edit(role_id):
     """Modifica ruolo esistente"""
     role = Role.query.get_or_404(role_id)
@@ -341,6 +385,9 @@ def roles_edit(role_id):
     return render_template("roles_form.html", role=role)
 
 @admin_bp.route("/roles/<int:role_id>/delete", methods=["POST"])
+@login_required
+@disclaimer_required
+@role_required("admin")
 def roles_delete(role_id):
     """Elimina ruolo"""
     role = Role.query.get_or_404(role_id)

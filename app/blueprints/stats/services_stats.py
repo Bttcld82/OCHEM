@@ -9,10 +9,160 @@ from datetime import datetime
 from io import StringIO
 from flask import current_app
 from app import db
-from app.models import Lab, Cycle, CycleParameter, Parameter
+from app.models import Lab, Cycle, CycleParameter, Parameter, Result, ZScore, PtStats
 
 # Costante per calcolo RSZ (Robust Z-Score)
 MAD_K = 1.4826
+
+
+def recalculate_pt_stats(cycle_code: str, parameter_code: str, lab_code: str) -> None:
+    """
+    Ricalcola PtStats (mean_z, rsz, n_results) per la tripletta ciclo/parametro/lab
+    basandosi su tutti i ZScore attivi. Crea il record se non esiste, lo elimina se
+    non ci sono z-score residui.
+
+    Formula RSZ: MAD_K * median(|z_i - median(z_i)|)  con MAD_K=1.4826 (ISO 13528 §8)
+    Deve essere chiamata dopo ogni insert/edit/delete di Result+ZScore.
+    """
+    z_values = (
+        db.session.query(ZScore.z)
+        .join(Result, ZScore.result_id == Result.id)
+        .filter(
+            Result.cycle_code == cycle_code,
+            Result.parameter_code == parameter_code,
+            Result.lab_code == lab_code,
+        )
+        .all()
+    )
+    z_list = [float(row.z) for row in z_values]
+
+    pt = PtStats.query.filter_by(
+        cycle_code=cycle_code,
+        parameter_code=parameter_code,
+        lab_code=lab_code,
+    ).first()
+
+    if not z_list:
+        if pt:
+            db.session.delete(pt)
+        return
+
+    n = len(z_list)
+    mean_z = float(np.mean(z_list))
+
+    if n >= 2:
+        median_z = float(np.median(z_list))
+        mad = float(np.median(np.abs(np.array(z_list) - median_z)))
+        rsz = MAD_K * mad if mad > 0 else 0.0
+    else:
+        rsz = 0.0
+
+    if pt is None:
+        pt = PtStats(
+            cycle_code=cycle_code,
+            parameter_code=parameter_code,
+            lab_code=lab_code,
+            created_at=datetime.utcnow(),
+        )
+        db.session.add(pt)
+
+    pt.n_results = n
+    pt.mean_z = mean_z
+    pt.rsz = rsz
+    pt.updated_at = datetime.utcnow()
+
+
+def calculate_cycle_consensus_stats(cycle_code: str, parameter_code: str) -> dict:
+    """
+    Calcola media e sigma robusti cross-laboratorio per un ciclo/parametro
+    usando l'algoritmo A (QIAP) di ISO 13528 Annex C.
+
+    Aggiorna CycleParameter.xpt_robust e sigma_pt_robust.
+    Aggiorna PtStats.rsz per ogni laboratorio con z_robust = (x - xpt_robust) / sigma_pt_robust.
+
+    Restituisce un dizionario con i risultati del calcolo.
+    Avverte se n < 8 (ISO 13528 §6.4.2).
+    """
+    from app.models import CycleParameter
+
+    # Recupera tutti i valori misurati per ciclo/parametro
+    rows = (
+        db.session.query(Result.lab_code, Result.measured_value)
+        .filter(
+            Result.cycle_code == cycle_code,
+            Result.parameter_code == parameter_code,
+        )
+        .all()
+    )
+
+    if not rows:
+        return {'error': 'Nessun risultato trovato per questo ciclo/parametro.'}
+
+    values = np.array([float(r.measured_value) for r in rows])
+    n = len(values)
+
+    warning = None
+    if n < 8:
+        warning = f'Solo {n} risultati disponibili (ISO 13528 §6.4.2 raccomanda almeno 8).'
+
+    # Algoritmo A — QIAP (ISO 13528 Annex C §C.2)
+    x_star = float(np.median(values))
+    s_star = MAD_K * float(np.median(np.abs(values - x_star)))
+
+    if s_star == 0:
+        # Deviazione standard robusta nulla: tutti valori identici
+        xpt_robust = x_star
+        sigma_pt_robust = None
+        return {
+            'n': n,
+            'xpt_robust': xpt_robust,
+            'sigma_pt_robust': None,
+            'warning': warning or 'Sigma robusto nullo: tutti i valori misurati sono identici.',
+        }
+
+    # Iterazione di Winsorizzazione (max 50 iterazioni)
+    delta = 1.5 * s_star
+    for _ in range(50):
+        x_w = np.clip(values, x_star - delta, x_star + delta)
+        x_new = float(np.mean(x_w))
+        s_new = MAD_K * float(np.median(np.abs(values - x_new)))
+        delta_new = 1.5 * s_new
+        if abs(x_new - x_star) < 1e-9 * s_star:
+            break
+        x_star, s_star, delta = x_new, s_new, delta_new
+
+    xpt_robust = x_star
+    sigma_pt_robust = s_star
+
+    # Aggiorna CycleParameter
+    cp = CycleParameter.query.filter_by(
+        cycle_code=cycle_code, parameter_code=parameter_code
+    ).first()
+    if cp:
+        cp.xpt_robust = xpt_robust
+        cp.sigma_pt_robust = sigma_pt_robust
+        cp.updated_at = datetime.utcnow()
+
+    # Aggiorna PtStats.rsz per ogni laboratorio con z_robust
+    for row in rows:
+        pt = PtStats.query.filter_by(
+            cycle_code=cycle_code,
+            parameter_code=parameter_code,
+            lab_code=row.lab_code,
+        ).first()
+        if pt:
+            z_robust = (float(row.measured_value) - xpt_robust) / sigma_pt_robust
+            pt.rsz = z_robust
+            pt.updated_at = datetime.utcnow()
+
+    db.session.commit()
+
+    return {
+        'n': n,
+        'xpt_robust': round(xpt_robust, 6),
+        'sigma_pt_robust': round(sigma_pt_robust, 6),
+        'warning': warning,
+    }
 
 
 def process_results_csv(file_stream, lab_code):
@@ -99,13 +249,13 @@ def _add_reference_values(df, lab_code):
     # Crea un mapping parameter_code -> (xpt, spt)
     reference_values = {}
     
-    cycle_params = CycleParameter.query.filter_by(cycle_id=latest_cycle.id).all()
+    cycle_params = CycleParameter.query.filter_by(cycle_code=latest_cycle.code).all()
     for cycle_param in cycle_params:
         if cycle_param.parameter:
             param_code = cycle_param.parameter.code
             reference_values[param_code] = {
-                'xpt': cycle_param.assigned_xpt or 100.0,  # Default se None
-                'spt': cycle_param.assigned_spt or 5.0     # Default se None
+                'xpt': cycle_param.xpt or 100.0,
+                'spt': cycle_param.sigma_pt or 5.0
             }
     
     # Applica i valori di riferimento
@@ -225,27 +375,25 @@ def generate_template_csv(lab_code):
             }
         else:
             # Template basato sui parametri del ciclo
-            cycle_params = CycleParameter.query.filter_by(cycle_id=latest_cycle.id).all()
-            
+            cycle_params = CycleParameter.query.filter_by(cycle_code=latest_cycle.code).all()
+
             template_data = {
                 'parameter_code': [],
                 'result_value': [],
                 'technique_code': [],
                 'unit_code': [],
-                'date_performed': [],
-                'assigned_xpt': [],
-                'assigned_spt': []
+                'xpt': [],
+                'sigma_pt': []
             }
-            
+
             for cp in cycle_params:
                 if cp.parameter:
                     template_data['parameter_code'].append(cp.parameter.code)
-                    template_data['result_value'].append('')  # Campo da riempire
+                    template_data['result_value'].append('')
                     template_data['technique_code'].append('')
                     template_data['unit_code'].append(cp.parameter.unit.code if cp.parameter.unit else '')
-                    template_data['date_performed'].append('')
-                    template_data['assigned_xpt'].append(cp.assigned_xpt or '')
-                    template_data['assigned_spt'].append(cp.assigned_spt or '')
+                    template_data['xpt'].append(cp.xpt or '')
+                    template_data['sigma_pt'].append(cp.sigma_pt or '')
         
         # Crea DataFrame e converti in CSV
         df_template = pd.DataFrame(template_data)

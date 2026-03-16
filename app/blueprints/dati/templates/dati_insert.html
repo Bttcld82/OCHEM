@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Inserimento Risultato - {{ lab.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1"><i class="fas fa-plus-circle"></i> Inserimento Manuale Risultato</h1>
+            <p class="text-muted mb-0">Lab: <strong>{{ lab.code }} - {{ lab.name }}</strong></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('dati.result_list', lab_code=lab_code) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-list"></i> Lista Risultati
+            </a>
+            <a href="{{ url_for('main.lab_hub', lab_code=lab_code) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Hub Lab
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Form -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-edit"></i> Dati Risultato</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="insertForm">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row g-3">
+                            <!-- Ciclo -->
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Ciclo PT *</label>
+                                <select name="cycle_code" id="cycleSelect" class="form-select" required
+                                        hx-get="{{ url_for('dati.get_cycle_params', lab_code=lab_code) }}"
+                                        hx-target="#paramSelect"
+                                        hx-include="[name='cycle_code']"
+                                        hx-trigger="change">
+                                    {% for val, label in form.cycle_code.choices %}
+                                    <option value="{{ val }}" {% if form.cycle_code.data == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% for e in form.cycle_code.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+
+                            <!-- Parametro (aggiornato via HTMX) -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Parametro *</label>
+                                <select name="parameter_code" id="paramSelect" class="form-select" required>
+                                    {% for val, label in form.parameter_code.choices %}
+                                    <option value="{{ val }}" {% if form.parameter_code.data == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% for e in form.parameter_code.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                <div class="form-text">Aggiornato in base al ciclo selezionato</div>
+                            </div>
+
+                            <!-- Tecnica -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tecnica Analitica</label>
+                                {{ form.technique_code(class="form-select") }}
+                            </div>
+
+                            <!-- Valore Misurato -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Valore Misurato *</label>
+                                {{ form.measured_value(class="form-control", placeholder="es. 12.345678") }}
+                                {% for e in form.measured_value.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+
+                            <!-- Incertezza -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Incertezza <span class="text-muted">(opzionale)</span></label>
+                                {{ form.uncertainty(class="form-control", placeholder="es. 0.5") }}
+                            </div>
+
+                            <!-- Note -->
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Note <span class="text-muted">(opzionale)</span></label>
+                                {{ form.notes(class="form-control", rows="2", placeholder="Note aggiuntive...") }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Inserisci e Calcola Z-Score
+                            </button>
+                            <a href="{{ url_for('dati.result_list', lab_code=lab_code) }}" class="btn btn-outline-secondary ms-2">
+                                Annulla
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar guida -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Guida Z-Score</h6>
+                </div>
+                <div class="card-body small">
+                    <p>Il Z-score viene calcolato automaticamente dopo l'inserimento:</p>
+                    <p class="mb-1"><code>Z = (Valore - XPT) / SigmaPT</code></p>
+                    <hr>
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item px-0 py-2 d-flex align-items-center gap-2">
+                            <span class="badge bg-success">|Z| &lt; 2</span>
+                            <span>Eccellente</span>
+                        </div>
+                        <div class="list-group-item px-0 py-2 d-flex align-items-center gap-2">
+                            <span class="badge bg-warning">2 ≤ |Z| &lt; 3</span>
+                            <span>Accettabile</span>
+                        </div>
+                        <div class="list-group-item px-0 py-2 d-flex align-items-center gap-2">
+                            <span class="badge bg-danger">|Z| ≥ 3</span>
+                            <span>Fuori controllo</span>
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2 mt-3">
+                        <i class="fas fa-lightbulb"></i>
+                        In alternativa puoi usare l'<a href="{{ url_for('stats_bp.upload_results', lab_code=lab_code) }}">upload CSV</a>
+                        per inserire più risultati in una sola volta.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- HTMX per aggiornamento dinamico parametri -->
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{% endblock %}

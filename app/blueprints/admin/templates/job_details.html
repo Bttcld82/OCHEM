@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Dettaglio Job #{{ job.id }} - Admin OCHEM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Dettaglio Job #{{ job.id }}</h1>
+            <p class="text-muted mb-0"><code>{{ job.job_type }}</code></p>
+        </div>
+        <a href="{{ url_for('admin_bp.jobs_list') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Tutti i job
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Riepilogo -->
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="fas fa-info-circle me-1"></i> Riepilogo
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5 text-muted">Tipo job</dt>
+                        <dd class="col-sm-7"><code>{{ job.job_type }}</code></dd>
+
+                        <dt class="col-sm-5 text-muted">Stato</dt>
+                        <dd class="col-sm-7">
+                            {% if job.status == 'running' %}
+                                <span class="badge bg-primary">In esecuzione</span>
+                            {% elif job.status == 'completed' %}
+                                <span class="badge bg-success">Completato</span>
+                            {% elif job.status == 'failed' %}
+                                <span class="badge bg-danger">Fallito</span>
+                            {% elif job.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">In attesa</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ job.status }}</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Avviato il</dt>
+                        <dd class="col-sm-7">
+                            {{ job.started_at.strftime('%d/%m/%Y alle %H:%M:%S') if job.started_at else '-' }}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted">Completato il</dt>
+                        <dd class="col-sm-7">
+                            {{ job.completed_at.strftime('%d/%m/%Y alle %H:%M:%S') if job.completed_at else 'Non completato' }}
+                        </dd>
+
+                        {% if job.started_at and job.completed_at %}
+                        <dt class="col-sm-5 text-muted">Durata</dt>
+                        <dd class="col-sm-7">
+                            {{ ((job.completed_at - job.started_at).total_seconds() | int) }} secondi
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Errori e dettagli -->
+        <div class="col-md-7">
+            {% if job.error_message %}
+            <div class="card border-0 shadow-sm border-start border-danger border-3 mb-3">
+                <div class="card-header bg-light fw-semibold text-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i> Messaggio di errore
+                </div>
+                <div class="card-body">
+                    <pre class="mb-0 text-danger small">{{ job.error_message }}</pre>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if job.details %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="fas fa-align-left me-1"></i> Dettagli
+                </div>
+                <div class="card-body">
+                    <pre class="mb-0 small text-muted">{{ job.details }}</pre>
+                </div>
+            </div>
+            {% else %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center text-muted py-4">
+                    <i class="fas fa-info-circle me-1"></i> Nessun dettaglio disponibile.
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

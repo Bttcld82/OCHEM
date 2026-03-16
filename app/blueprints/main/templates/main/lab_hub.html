@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}{{ lab.name }} — OCHEM{% endblock %}
+
+{% block content %}
+
+{# Header laboratorio #}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h1 class="h3 mb-0">{{ lab.name }}</h1>
+    <span class="text-muted small">Codice: <code>{{ lab.code }}</code></span>
+    {% if lab.city %}<span class="text-muted small ms-2">— {{ lab.city }}</span>{% endif %}
+  </div>
+  <div class="d-flex gap-2">
+    {% if is_owner %}
+    <a href="{{ url_for('admin_bp.users_list') }}"
+       class="btn btn-outline-primary btn-sm">
+      <i class="fa fa-users me-1"></i>Gestione utenti
+    </a>
+    {% endif %}
+    <span class="badge
+      {% if user_role == 'owner_lab' %}bg-primary
+      {% elif user_role == 'analyst' %}bg-success
+      {% else %}bg-secondary{% endif %}
+      align-self-center">
+      {{ user_role or 'viewer' }}
+    </span>
+  </div>
+</div>
+
+{# Card QC #}
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card text-center border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-primary">{{ stats.total_results }}</div>
+        <div class="text-muted small">Risultati totali</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card text-center border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-success">{{ stats.active_cycles }}</div>
+        <div class="text-muted small">Cicli attivi</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card text-center border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-secondary">{{ stats.parameters_count }}</div>
+        <div class="text-muted small">Parametri</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Link rapidi #}
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a href="{{ url_for('dati.insert', lab_code=lab.code) }}"
+       class="card text-decoration-none border-0 shadow-sm h-100">
+      <div class="card-body text-center py-4">
+        <i class="fa fa-plus-circle fa-2x text-success mb-2"></i>
+        <div class="fw-semibold">Inserisci dati</div>
+        <div class="text-muted small">Aggiungi risultati</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('stats_bp.results', lab_code=lab.code) }}"
+       class="card text-decoration-none border-0 shadow-sm h-100">
+      <div class="card-body text-center py-4">
+        <i class="fa fa-chart-line fa-2x text-primary mb-2"></i>
+        <div class="fw-semibold">Statistiche</div>
+        <div class="text-muted small">Z-score e grafici</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('main.dashboard') }}"
+       class="card text-decoration-none border-0 shadow-sm h-100">
+      <div class="card-body text-center py-4">
+        <i class="fa fa-home fa-2x text-secondary mb-2"></i>
+        <div class="fw-semibold">Dashboard</div>
+        <div class="text-muted small">Tutti i laboratori</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# Cicli recenti #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">Cicli PT</div>
+      <div class="card-body p-0">
+        {% if lab_cycles %}
+          <ul class="list-group list-group-flush">
+            {% for cycle in lab_cycles %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="small fw-semibold">{{ cycle.name }}</div>
+                <div class="text-muted" style="font-size:0.75rem;">{{ cycle.code }}</div>
+              </div>
+              <span class="badge {{ 'bg-success' if cycle.status == 'published' else 'bg-secondary' }}">
+                {{ cycle.status }}
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="p-4 text-center text-muted small">Nessun ciclo disponibile.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Ultimi upload #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">Ultimi upload</div>
+      <div class="card-body p-0">
+        {% if lab_uploads %}
+          <ul class="list-group list-group-flush">
+            {% for upload in lab_uploads %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="small fw-semibold">{{ upload.filename or upload.id }}</div>
+                <div class="text-muted" style="font-size:0.75rem;">
+                  {{ upload.uploaded_at.strftime('%d/%m/%Y %H:%M') if upload.uploaded_at else '—' }}
+                </div>
+              </div>
+              <span class="badge {{ 'bg-success' if upload.status == 'ok' else 'bg-warning text-dark' }}">
+                {{ upload.status or '—' }}
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="p-4 text-center text-muted small">Nessun upload registrato.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
