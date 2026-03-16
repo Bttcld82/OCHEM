@@ -1,3 +1,15 @@
+# ── OCHEM specifico ─────────────────────────────────────────────────────────
+# Dati locali / import massivi
+import_mass_data/
+
+# Editor Obsidian (configurazione locale)
+.obsidian/
+
+# Screenshot e snapshot temporanei
+*.png
+cycles_snapshot.md
+
+# ── Python / Flask ───────────────────────────────────────────────────────────
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
